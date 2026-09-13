@@ -394,11 +394,42 @@ async function fetchTMDBSearch(query: string) {
   }
 }
 
+export async function getAnimeSearchTitle(idOrSlug: string): Promise<string> {
+  const cleanId = idOrSlug.replace(/-ep(isode)?-\d+.*/i, '').replace(/-op-\d+.*/i, '').replace(/-(sub|dub)-indo.*/gi, '').trim();
+  if (TMDB_TITLE_MAP[cleanId]) return TMDB_TITLE_MAP[cleanId];
+  if (/^\d+$/.test(cleanId)) {
+    try {
+      const res = await fetch(`https://api.themoviedb.org/3/tv/${cleanId}?api_key=${TMDB_API_KEY}`);
+      if (res.ok) {
+        const d = await res.json();
+        if (d.name || d.original_name) return d.name || d.original_name;
+      }
+    } catch {}
+  }
+  return cleanId.replace(/[-_]/g, ' ');
+}
+
 export async function fetchWajikAnimeDetail(animeId: string) {
   try {
     const cleanId = animeId.replace(/^\//, '').replace(/\/$/, '');
-    const url = `${OTAKUDESU_BASE}/anime/${cleanId}/`;
-    const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });
+    let url = `${OTAKUDESU_BASE}/anime/${cleanId}/`;
+    let res = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });
+    
+    // If cleanId is numeric or direct slug 404s, search Otakudesu by title
+    if (!res.ok || /^\d+$/.test(cleanId)) {
+      const title = await getAnimeSearchTitle(cleanId);
+      const searchUrl = `${OTAKUDESU_BASE}/?s=${encodeURIComponent(title)}&post_type=anime`;
+      const searchRes = await fetch(searchUrl, { headers: { 'User-Agent': USER_AGENT } });
+      if (searchRes.ok) {
+        const searchHtml = await searchRes.text();
+        const animeMatch = searchHtml.match(/<h2[^>]*><a href="(https:\/\/[^"]*otakudesu[^"]*\/anime\/[^"\/]+\/?)"[^>]*>/i);
+        if (animeMatch) {
+          url = animeMatch[1];
+          res = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });
+        }
+      }
+    }
+
     if (!res.ok) throw new Error(`Anime detail status ${res.status}`);
     const html = await res.text();
 
@@ -651,7 +682,7 @@ export async function fetchWajikEpisodeDetail(episodeId: string) {
     const tmdbId = await resolveTmdbAnimeId(animeSlug);
     const { season, episode } = await getSeasonAndEpisode(tmdbId, epNum);
 
-    const animeTitle = TMDB_TITLE_MAP[tmdbId] || animeSlug.replace(/[-_]/g, ' ');
+    const animeTitle = await getAnimeSearchTitle(animeSlug);
     const otakudesuStream = await resolveOtakudesuStream(animeTitle, epNum);
 
     const defaultStreamUrl = otakudesuStream || `https://vidsrc.me/embed/anime?tmdb=${tmdbId}&season=${season}&episode=${episode}`;
