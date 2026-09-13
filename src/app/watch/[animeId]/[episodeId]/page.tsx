@@ -66,9 +66,16 @@ export default function WatchPage({
 
   const handleSelectServer = async (server: ServerOption, quality: string) => {
     setSelectedServerId(server.serverId);
+    if (!server.serverId) return;
+
+    if (server.serverId.startsWith('http://') || server.serverId.startsWith('https://')) {
+      setActiveStreamUrl(server.serverId);
+      return;
+    }
+
     setStreamLoading(true);
     try {
-      const res = await fetch(`/api/anime/server/${server.serverId}`);
+      const res = await fetch(`/api/anime/server/${encodeURIComponent(server.serverId)}`);
       const json = await res.json();
       if (json.success && json.data?.url) {
         setActiveStreamUrl(json.data.url);
