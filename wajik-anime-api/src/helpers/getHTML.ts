@@ -2,7 +2,7 @@ import errorinCuy from "./errorinCuy.js";
 import sanitizeHtml from "sanitize-html";
 
 export const userAgent =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36 Edg/136.0.0.0";
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
 export default async function getHTML(
   baseUrl: string,
@@ -11,17 +11,21 @@ export default async function getHTML(
   sanitize = false,
 ): Promise<string> {
   const url = new URL(pathname, baseUrl);
+  const refererUrl = ref
+    ? (ref.startsWith("http") ? ref : new URL(ref, baseUrl).toString())
+    : `${baseUrl}/`;
+
   const headers: Record<string, string> = {
     "User-Agent": userAgent,
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+    "Accept-Language": "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7",
+    "Referer": refererUrl,
   };
-
-  if (ref) {
-    headers.Referer = ref.startsWith("http") ? ref : new URL(ref, baseUrl).toString();
-  }
 
   const response = await fetch(url, { headers, redirect: "follow" });
 
   if (!response.ok) {
+    console.error(`[getHTML error] ${url.toString()} -> HTTP ${response.status}`);
     response.status > 399 ? errorinCuy(response.status) : errorinCuy(404);
   }
 

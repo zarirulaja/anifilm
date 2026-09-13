@@ -17,12 +17,12 @@ export function normalizeAnimeSummary(item: any): AnimeSummary {
   }
 
   return {
-    id: String(item?.animeId || item?.id || ''),
+    id: String(item?.animeId || item?.slug || item?.id || ''),
     title: item?.title || item?.name || 'Untitled Anime',
     poster: posterUrl,
-    episodes: item?.episodes ? String(item.episodes) : undefined,
+    episodes: item?.episodes ? String(item.episodes) : item?.latestEpisode ? `Ep ${item.latestEpisode}` : undefined,
     score: item?.score ? String(item.score).replace('Rating :', '').trim() : item?.vote_average ? item.vote_average.toFixed(1) : undefined,
-    releaseDay: item?.releaseDay || undefined,
+    releaseDay: item?.releaseDay || item?.releaseDate || undefined,
     lastReleaseDate: item?.lastReleaseDate || undefined,
     status: item?.status ? String(item.status).replace('Status :', '').trim() : 'Ongoing',
   };
@@ -46,10 +46,14 @@ export function normalizeHomeResponse(raw: any): {
 } {
   const ongoingRaw = Array.isArray(raw?.data?.ongoing)
     ? raw.data.ongoing
+    : Array.isArray(raw?.data?.latestRelease?.animeList)
+    ? raw.data.latestRelease.animeList
     : (raw?.data?.ongoing?.animeList || []);
 
   const completedRaw = Array.isArray(raw?.data?.completed)
     ? raw.data.completed
+    : Array.isArray(raw?.data?.popularToday?.animeList)
+    ? raw.data.popularToday.animeList
     : (raw?.data?.completed?.animeList || []);
 
   return {

@@ -1,5 +1,9 @@
 const otakudesuConfig: IAnimeConfig = {
-  baseUrl: "https://otakudesu.blog",
+  baseUrl: "https://otakudesu.asia",
 };
 
 export default otakudesuConfig;
+
+
+
+
