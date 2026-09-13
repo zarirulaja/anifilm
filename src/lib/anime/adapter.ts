@@ -156,17 +156,42 @@ export function normalizeAnimeDetail(raw: any, idParam: string): AnimeDetail {
   };
 }
 
+const POPULAR_TMDB_MAP: Record<string, string> = {
+  'one-piece': '37854',
+  'blue-lock': '131041',
+  'jujutsu-kaisen': '95479',
+  'naruto': '31910',
+  'attack-on-titan': '1429',
+  'demon-slayer': '85937',
+  'solo-leveling': '127532',
+  'chainsaw-man': '114410',
+  'frieren': '209867',
+  'my-hero-academia': '65930',
+  'bleach': '30984',
+  'dragon-ball': '12971',
+};
+
+function getTmdbId(slug: string): string {
+  const lower = slug.toLowerCase();
+  for (const [key, val] of Object.entries(POPULAR_TMDB_MAP)) {
+    if (lower.includes(key)) return val;
+  }
+  return '37854';
+}
+
 export function normalizeEpisodeDetail(raw: any, epIdParam: string): EpisodeDetail {
-  const d = raw?.data?.details || {};
+  const d = raw?.data?.details || raw?.data || {};
+  const defaultStream = d?.defaultStreamingUrl || d?.streamingUrl || d?.url || '';
+
   const serverContainer = d?.server || {};
   const qualityListRaw = serverContainer?.qualityList || [];
 
-  const qualities: QualityGroup[] = qualityListRaw.map((qGroup: any) => {
+  let qualities: QualityGroup[] = qualityListRaw.map((qGroup: any) => {
     const rawQualityTitle = qGroup?.title || '';
     const cleanQuality = rawQualityTitle.replace('Mirror', '').trim();
     const servers = (qGroup?.serverList || []).map((srv: any) => ({
       title: srv?.title || 'Default Server',
-      serverId: srv?.serverId || '',
+      serverId: srv?.serverId || srv?.url || defaultStream,
     }));
     return {
       quality: cleanQuality,
@@ -174,22 +199,68 @@ export function normalizeEpisodeDetail(raw: any, epIdParam: string): EpisodeDeta
     };
   });
 
+  if (qualities.length === 0 || !qualities.some((q) => q.servers && q.servers.length > 0)) {
+    const tmdbId = getTmdbId(epIdParam);
+    const epMatch = epIdParam.match(/(?:ep|episode|op)[-_]?(\d+)/i);
+    const epNum = epMatch ? epMatch[1] : '1';
+
+    const serverList = [
+      {
+        title: 'Server 1 (Wajik API Sub Indo 🇯🇵)',
+        serverId: defaultStream || `https://vidsrc.me/embed/anime?tmdb=${tmdbId}&season=1&episode=${epNum}`,
+      },
+      {
+        title: 'Server 2 (VidSrc Anime - Audio Asli 🇯🇵)',
+        serverId: `https://vidsrc.me/embed/anime?tmdb=${tmdbId}&season=1&episode=${epNum}`,
+      },
+      {
+        title: 'Server 3 (VidSrc.pm Anime - Audio Asli 🇯🇵)',
+        serverId: `https://vidsrc.pm/embed/anime/${tmdbId}/1/${epNum}`,
+      },
+      {
+        title: 'Server 4 (2Embed Skin HD)',
+        serverId: `https://2embed.skin/embedtv/${tmdbId}&s=1&e=${epNum}`,
+      },
+      {
+        title: 'Server 5 (AutoEmbed HD)',
+        serverId: `https://autoembed.co/tv/tmdb/${tmdbId}-1-${epNum}`,
+      },
+    ];
+
+    qualities = [
+      {
+        quality: 'HD 1080p / 720p (Multi Server Sub Indo & Original)',
+        servers: serverList,
+      },
+    ];
+  } else {
+    const firstGroup = qualities[0];
+    if (firstGroup && firstGroup.servers.length > 0 && defaultStream) {
+      if (!firstGroup.servers.some((s) => s.title.includes('Wajik') || s.title.includes('Server 1'))) {
+        firstGroup.servers.unshift({
+          title: 'Server 1 (Wajik API Sub Indo 🇯🇵)',
+          serverId: defaultStream,
+        });
+      }
+    }
+  }
+
   return {
     id: epIdParam,
     title: d?.title || `Episode ${epIdParam}`,
-    animeId: d?.animeId || '',
-    releaseTime: d?.releaseTime || undefined,
-    defaultStreamingUrl: d?.defaultStreamingUrl || '',
-    hasPrevEpisode: Boolean(d?.hasPrevEpisode),
-    prevEpisodeId: d?.prevEpisode?.episodeId || null,
-    hasNextEpisode: Boolean(d?.hasNextEpisode),
-    nextEpisodeId: d?.nextEpisode?.episodeId || null,
+    animeId: d?.animeId || d?.seriesSlug || '',
+    releaseTime: d?.releaseTime || d?.releasedOn || undefined,
+    defaultStreamingUrl: defaultStream || qualities[0]?.servers[0]?.serverId || '',
+    hasPrevEpisode: Boolean(d?.hasPrevEpisode || d?.prevEpisode),
+    prevEpisodeId: d?.prevEpisode?.episodeId || d?.prevEpisode?.slug || null,
+    hasNextEpisode: Boolean(d?.hasNextEpisode || d?.nextEpisode),
+    nextEpisodeId: d?.nextEpisode?.episodeId || d?.nextEpisode?.slug || null,
     qualities,
   };
 }
 
 export function normalizeServerStream(raw: any, serverId: string): StreamSource {
-  const streamUrl = raw?.data?.details?.url || raw?.data?.url || '';
+  const streamUrl = raw?.data?.details?.url || raw?.data?.url || serverId || '';
   return {
     url: streamUrl,
     isIframe: true,

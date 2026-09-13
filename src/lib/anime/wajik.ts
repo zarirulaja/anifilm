@@ -237,12 +237,15 @@ export async function fetchWajikEpisodeDetail(episodeId: string) {
 }
 
 export async function fetchWajikServerStream(serverId: string) {
+  if (serverId.startsWith('http://') || serverId.startsWith('https://')) {
+    return { statusCode: 200, statusMessage: 'OK', data: { details: { url: serverId } } };
+  }
   try {
     const res = await wajikFetch<any>(`/otakudesu/server/${encodeURIComponent(serverId)}`);
     if (res?.statusCode === 200 && res?.data) return res;
     throw new Error('Otakudesu server detail empty');
   } catch {
-    return { success: true, data: { details: { url: serverId } } };
+    return { statusCode: 200, statusMessage: 'OK', data: { details: { url: serverId } } };
   }
 }
 
