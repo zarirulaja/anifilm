@@ -275,19 +275,19 @@ export default function VideoPlayer({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-slate-300">
             <div className="bg-slate-950/60 p-3.5 rounded-xl border border-slate-800/80 space-y-1">
               <div className="font-bold text-emerald-400 flex items-center gap-1.5">
-                <span>1. Server 1 (VidSrc HD)</span>
+                <span>1. Pemutar Utama (Wajik API Sub Indo)</span>
               </div>
               <p className="text-slate-400 text-[11px] leading-relaxed">
-                Di bagian atas / bawah layar player video, klik tombol <strong>SUB</strong> (bukan DUB) atau klik tombol <strong>CC / Settings (⚙️)</strong> ➡️ pilih <strong>Japanese Audio / Subtitles</strong>.
+                Video diputar langsung dalam bahasa Asli Jepang dengan Subtitle Indonesia. Klik tombol Play di tengah layar untuk memulai streaming.
               </p>
             </div>
 
             <div className="bg-slate-950/60 p-3.5 rounded-xl border border-slate-800/80 space-y-1">
-              <div className="font-bold text-indigo-400 flex items-center gap-1.5">
-                <span>2. Server 2 (AutoEmbed HD)</span>
+              <div className="font-bold text-emerald-400 flex items-center gap-1.5">
+                <span>2. Server Mirror & Resolusi</span>
               </div>
               <p className="text-slate-400 text-[11px] leading-relaxed">
-                Di pojok kanan atas player video, klik menu server (cth: <strong>MegaCloud / UpCloud</strong>) lalu pilih opsi <strong>Subbed / Sub Indo</strong>.
+                Pilih variasi resolusi (1080p, 720p, 480p, 360p) atau server mirror (Filedon, Vidhide, Mega, Odcdn, Blogs) pada panel di bawah jika memerlukan opsi pemutar cadangan.
               </p>
             </div>
           </div>
