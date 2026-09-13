@@ -55,8 +55,8 @@ export default function errorHandler(
 
   res.status(500).json(
     setPayload(res, {
-      // message: `Terjadi kesalahan tak terduga. Request ID: ${uuid}`,
-      message: `Terjadi kesalahan tak terduga`,
+      message: err.message || "Terjadi kesalahan tak terduga",
     }),
   );
 }
+

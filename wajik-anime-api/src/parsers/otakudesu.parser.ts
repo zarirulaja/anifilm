@@ -307,8 +307,7 @@ const otakudesuParser = {
       }
     }
 
-    const genreParEl = document.querySelector(".infozingle")?.lastElementChild!;
-    const genreElems = genreParEl.querySelectorAll("a");
+    const genreElems = document.querySelectorAll(".infozingle a");
     const genreList = otakudesuExtraParser.parseTextGenreList(genreElems);
 
     const animeElems = document.querySelectorAll(".isi-recommend-anime-series .isi-konten");
@@ -362,6 +361,7 @@ const otakudesuParser = {
         nextEpisode = { ...navigationObj, title: "Next" };
       }
     });
+
 
     const downloadElems = document.querySelectorAll(".download ul li");
     const download: IFormat = {
@@ -435,17 +435,18 @@ const otakudesuParser = {
 
     const title = Text(document.querySelector(".venutama h1.posttl"));
     const animeId = Id(
-      document.querySelector(".alert-info")?.lastElementChild?.querySelector("a")!
+      document.querySelector(".alert-info a") || document.querySelector(".kategoz a")
     );
-    const releaseTime = Text(document.querySelector(".kategoz .fa-clock-o")?.nextElementSibling!)
+    const releaseTime = Text(document.querySelector(".kategoz .fa-clock-o")?.nextElementSibling)
       .replace(/Release on /g, "")
       .toUpperCase();
     const defaultStreamingUrl = Src(document.querySelector(".player-embed iframe"));
     const hasPrevEpisode = prevEpisode ? true : false;
     const hasNextEpisode = nextEpisode ? true : false;
 
-    const genreElems = document.querySelectorAll(".infozingle p")[2]?.querySelectorAll("a");
-    const genreList = otakudesuExtraParser.parseTextGenreList(genreElems || []);
+    const genreElems = document.querySelectorAll(".infozingle a");
+    const genreList = otakudesuExtraParser.parseTextGenreList(genreElems);
+
 
     const episodeElems = document.querySelectorAll(".keyingpost li a");
     const episodeList = otakudesuExtraParser.parseTextEpisodeList(episodeElems);
