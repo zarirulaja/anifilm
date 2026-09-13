@@ -194,19 +194,34 @@ export default function VideoPlayer({
         )}
 
         {/* Video Overlay Info Header */}
-        <div className="absolute top-4 left-4 right-4 flex items-center justify-between pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-          <div className="flex items-center gap-2 bg-slate-950/80 px-3 py-1.5 rounded-xl border border-slate-800 backdrop-blur-md">
+        <div className="absolute top-4 left-4 right-4 flex items-center justify-between pointer-events-none z-10">
+          <div className="flex items-center gap-2 bg-slate-950/90 px-3 py-1.5 rounded-xl border border-slate-800 backdrop-blur-md">
             <Volume2 className="w-4 h-4 text-emerald-400" />
-            <span className="text-xs font-semibold text-slate-200">🇯🇵 Audio Jepang (Subbed) Available</span>
+            <span className="text-xs font-semibold text-slate-200 hidden sm:inline">🇯🇵 Sub Indo</span>
           </div>
 
-          <button
-            onClick={toggleFullscreen}
-            className="pointer-events-auto p-2 rounded-xl bg-slate-950/80 text-white hover:bg-slate-800 backdrop-blur-md border border-slate-800 transition-colors"
-            title="Fullscreen (F)"
-          >
-            <Maximize className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-2 pointer-events-auto">
+            {streamUrl && (
+              <a
+                href={streamUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs shadow-lg backdrop-blur-md transition-all hover:scale-105"
+                title="Buka player ini di tab baru jika iframe memerlukan login atau ditolak browser"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span>Buka di Tab Baru</span>
+              </a>
+            )}
+
+            <button
+              onClick={toggleFullscreen}
+              className="p-2 rounded-xl bg-slate-950/90 text-white hover:bg-slate-800 backdrop-blur-md border border-slate-800 transition-colors"
+              title="Fullscreen (F)"
+            >
+              <Maximize className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* End of Episode Completed Overlay */}

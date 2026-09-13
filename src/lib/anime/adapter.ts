@@ -219,9 +219,21 @@ function getTmdbId(slug: string): string {
   return '37854';
 }
 
+function convertToEmbedUrl(url: string): string {
+  if (!url) return url;
+  if (url.includes('filedon.co/view/') || url.includes('filedon.co/f/')) {
+    return url.replace(/\/view\/|\/f\//, '/embed/');
+  }
+  if (url.includes('vikingfile.com/f/') || url.includes('vik1ngfile.site/f/')) {
+    return url.replace(/\/f\//, '/e/');
+  }
+  return url;
+}
+
 export function normalizeEpisodeDetail(raw: any, epIdParam: string): EpisodeDetail {
   const d = raw?.data?.details || raw?.data || {};
-  const defaultStream = d?.defaultStreamingUrl || d?.streamingUrl || d?.url || '';
+  const rawDefaultStream = d?.defaultStreamingUrl || d?.streamingUrl || d?.url || '';
+  const defaultStream = convertToEmbedUrl(rawDefaultStream);
 
   const serverContainer = d?.server || {};
   const qualityListRaw = serverContainer?.qualityList || [];
@@ -245,7 +257,8 @@ export function normalizeEpisodeDetail(raw: any, epIdParam: string): EpisodeDeta
 
       (qGroup?.serverList || []).forEach((srv: any, idx: number) => {
         const srvTitle = srv?.title || `Server ${idx + 1}`;
-        const srvId = srv?.serverId || srv?.url || defaultStream;
+        const rawSrvId = srv?.serverId || srv?.url || defaultStream;
+        const srvId = convertToEmbedUrl(rawSrvId);
         if (srvId && !existing.servers.some((s) => s.serverId === srvId)) {
           existing.servers.push({
             title: `Server ${existing.servers.length + 1} (${srvTitle})`,
@@ -273,7 +286,8 @@ export function normalizeEpisodeDetail(raw: any, epIdParam: string): EpisodeDeta
 
           qGroup.urlList.forEach((srv: any) => {
             const srvTitle = srv?.title || 'Mirror';
-            const srvId = srv?.url || defaultStream;
+            const rawSrvId = srv?.url || defaultStream;
+            const srvId = convertToEmbedUrl(rawSrvId);
             if (srvId && !existing.servers.some((s) => s.serverId === srvId)) {
               existing.servers.push({
                 title: `${srvTitle} (${formatTitle})`,
