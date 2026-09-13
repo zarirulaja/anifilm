@@ -78,20 +78,81 @@ function cleanAnimeSlug(slug: string): string {
     .trim();
 }
 
+function generateCandidateSlugs(animeId: string): string[] {
+  const candidates: string[] = [];
+  const add = (s: string) => {
+    if (s && !candidates.includes(s)) candidates.push(s);
+  };
+
+  add(animeId);
+  const clean = (animeId || '')
+    .replace(/-subtitle-indonesia.*/gi, '')
+    .replace(/-(sub|dub)-indo.*/gi, '')
+    .trim();
+  add(clean);
+  if (clean) add(`${clean}-sub-indo`);
+  if (animeId && !animeId.endsWith('-sub-indo')) add(`${animeId}-sub-indo`);
+
+  for (const base of [animeId, clean]) {
+    if (!base) continue;
+    const s = base.toLowerCase();
+
+    if (s.startsWith('bnha-s')) {
+      const num = s.replace('bnha-s', '');
+      add(`boku-no-hero-academia-s${num}`);
+      add(`boku-no-hero-academia-season-${num}`);
+    } else if (s.startsWith('bnha-')) {
+      add(s.replace(/^bnha-/, 'boku-no-hero-academia-'));
+    }
+
+    if (s.startsWith('tensura-s') || s.startsWith('slime-s')) {
+      const num = s.replace(/^(tensura|slime)-s/, '');
+      add(`tensei-shitara-slime-datta-ken-s${num}`);
+      add(`tensei-shitara-slime-datta-ken-season-${num}`);
+    } else if (s.startsWith('tensura-') || s.startsWith('slime-')) {
+      add(s.replace(/^(tensura|slime)-/, 'tensei-shitara-slime-datta-ken-'));
+    }
+
+    if (s.startsWith('jjk-s')) {
+      const num = s.replace('jjk-s', '');
+      add(`jujutsu-kaisen-s${num}`);
+      add(`jujutsu-kaisen-season-${num}`);
+    } else if (s.startsWith('jjk-')) {
+      add(s.replace(/^jjk-/, 'jujutsu-kaisen-'));
+    }
+
+    if (s === 'naruto-s' || s.startsWith('naruto-s-')) {
+      add('naruto-shippuuden');
+      add('naruto-shippuden');
+    }
+
+    if (s === 'borot' || s.startsWith('borot-')) {
+      add('boruto-naruto-next-generations');
+      add('boruto');
+    }
+
+    if (s === '1piece' || s.startsWith('1piece-')) {
+      add('one-piece');
+    }
+
+    if (s.startsWith('hiroya-')) {
+      add(s.replace(/^hiroya-/, 'horimiya-'));
+    }
+
+    if (s.startsWith('ft-')) {
+      add(s.replace(/^ft-/, 'fate-'));
+    }
+  }
+
+  return candidates;
+}
+
 export async function fetchWajikAnimeDetail(animeId: string) {
   const cleanSlug = cleanAnimeSlug(animeId);
   const cleanQuery = (cleanSlug || animeId).replace(/-/g, ' ').trim();
+  const candidateSlugs = generateCandidateSlugs(animeId);
 
-  // 1. Prepare candidates for direct fetch
-  const candidateSlugs: string[] = [];
-  if (animeId) candidateSlugs.push(animeId);
-  if (cleanSlug && !candidateSlugs.includes(cleanSlug)) candidateSlugs.push(cleanSlug);
-  if (cleanSlug && !cleanSlug.endsWith('-sub-indo')) candidateSlugs.push(`${cleanSlug}-sub-indo`);
-  if (animeId && !animeId.endsWith('-sub-indo') && !candidateSlugs.includes(`${animeId}-sub-indo`)) {
-    candidateSlugs.push(`${animeId}-sub-indo`);
-  }
-
-  // Direct fetch across Otakudesu & Oploverz for candidate slugs
+  // 1. Direct fetch across Otakudesu & Oploverz for all generated candidate slugs
   for (const slug of candidateSlugs) {
     try {
       const res = await wajikFetch<any>(`/otakudesu/anime/${encodeURIComponent(slug)}`);
@@ -113,15 +174,9 @@ export async function fetchWajikAnimeDetail(animeId: string) {
         const itemSlug = item.animeId || item.slug || '';
         const itemTitle = (item.title || '').toLowerCase();
         const normQuery = cleanQuery.toLowerCase();
-        const normTitle = itemTitle.replace(/[^a-z0-9]/g, '');
-        const normClean = normQuery.replace(/[^a-z0-9]/g, '');
-
         return (
-          itemSlug === animeId ||
-          itemSlug === cleanSlug ||
-          itemSlug === `${cleanSlug}-sub-indo` ||
-          itemTitle === normQuery ||
-          (normClean.length > 3 && normTitle.includes(normClean))
+          candidateSlugs.includes(itemSlug) ||
+          itemTitle === normQuery
         );
       });
 
@@ -142,14 +197,9 @@ export async function fetchWajikAnimeDetail(animeId: string) {
         const itemSlug = item.slug || item.animeId || '';
         const itemTitle = (item.title || '').toLowerCase();
         const normQuery = cleanQuery.toLowerCase();
-        const normTitle = itemTitle.replace(/[^a-z0-9]/g, '');
-        const normClean = normQuery.replace(/[^a-z0-9]/g, '');
-
         return (
-          itemSlug === animeId ||
-          itemSlug === cleanSlug ||
-          itemTitle === normQuery ||
-          (normClean.length > 3 && normTitle.includes(normClean))
+          candidateSlugs.includes(itemSlug) ||
+          itemTitle === normQuery
         );
       });
 
