@@ -37,7 +37,6 @@ export default function VideoPlayer({
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [isMuted, setIsMuted] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showResumePrompt, setShowResumePrompt] = useState(initialProgress > 10);
   const [isEnded, setIsEnded] = useState(false);
@@ -201,7 +200,7 @@ export default function VideoPlayer({
         <div className="absolute top-4 left-4 right-4 flex items-center justify-between pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300">
           <div className="flex items-center gap-2 bg-slate-950/80 px-3 py-1.5 rounded-xl border border-slate-800 backdrop-blur-md">
             <Subtitles className="w-4 h-4 text-emerald-400" />
-            <span className="text-xs font-semibold text-slate-200">🇮🇩 Subtitle Indonesia Available</span>
+            <span className="text-xs font-semibold text-slate-200">🇮🇩 Subtitle / Audio Track Available</span>
           </div>
 
           <button
@@ -256,12 +255,14 @@ export default function VideoPlayer({
             <div className="p-2.5 rounded-xl bg-emerald-950/80 border border-emerald-500/30 text-emerald-400 shrink-0">
               <Subtitles className="w-5 h-5" />
             </div>
-            <div className="space-y-0.5">
+            <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <span className="font-extrabold text-white text-sm">Jika Player Blank / Tidak Berputar 🎬</span>
+                <span className="font-extrabold text-white text-sm">Petunjuk Penggunaan Server & Subtitle 🎬</span>
               </div>
-              <p className="text-slate-400 text-xs">
-                Silakan ganti ke <strong>Server 2 (MultiEmbed)</strong> atau <strong>Server 3 (2Embed)</strong> di pilihan server bawah. Pada player <strong>MultiEmbed</strong>, klik tombol <strong>CC / Settings ⚙️</strong> untuk memilih <strong>Bahasa Indonesia</strong>.
+              <p className="text-slate-400 text-xs leading-relaxed">
+                • <strong>Server 1 (VidSrc)</strong> dan <strong>Server 2 (AutoEmbed)</strong> aktif 100% bebas blokir ISP Internet Sehat di Indonesia.<br/>
+                • <strong>Mengubah Audio / Subtitle</strong>: Klik ikon <strong>CC</strong> atau <strong>Settings (⚙️)</strong> di pojok kanan bawah player video untuk memilih audio Jepang atau subtitle.<br/>
+                • Jika player mengalami gangguan pada ISP Anda, silakan klik server lain di bawah atau gunakan tombol <strong>Buka Video di Tab Baru</strong>.
               </p>
             </div>
           </div>
