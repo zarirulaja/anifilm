@@ -230,8 +230,7 @@ export async function fetchWajikHome() {
     }
 
     throw new Error('Empty ongoing list');
-  } catch (e) {
-    console.error('Otakudesu home scraper fallback:', e);
+  } catch {
     return await fetchTMDBAnimeFallback(1);
   }
 }
