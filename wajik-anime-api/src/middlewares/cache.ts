@@ -17,7 +17,11 @@ const lruCache = new LRUCache({
 export function serverCache(ttl?: number) {
   return (req: Request, res: Response, next: NextFunction) => {
     const newTTL = ttl ? 1000 * 60 * ttl : defaultTTL;
-    const key = path.join(req.originalUrl, "/").replace(/\\/g, "/");
+    const url = req.originalUrl || req.url || "/";
+    const key = path.join(url, "/").replace(/\\/g, "/");
+
+
+
     const cachedData = lruCache.get(key);
 
     if (cachedData) {
