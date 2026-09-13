@@ -328,8 +328,8 @@ export async function fetchWajikEpisodeDetail(episodeId: string) {
     // Calculate exact mapped Season and Episode numbers
     const { season, episode } = await getSeasonAndEpisode(tmdbId, epNum);
 
-    // High-speed direct stream URL: VidSrc HD (bypasses ISP block with 100% uptime)
-    const defaultStreamUrl = `https://vidsrc.to/embed/tv/${tmdbId}/${season}/${episode}`;
+    // Default to VidSrc Anime Engine (/embed/anime) which targets Subbed Japanese Audio natively
+    const defaultStreamUrl = `https://vidsrc.me/embed/anime?tmdb=${tmdbId}&season=${season}&episode=${episode}`;
 
     return {
       success: true,
@@ -346,13 +346,13 @@ export async function fetchWajikEpisodeDetail(episodeId: string) {
           server: {
             qualityList: [
               {
-                title: 'HD Streaming Servers',
+                title: 'HD Subbed Servers (Audio Asli Jepang 🇯🇵)',
                 serverList: [
-                  { title: 'Server 1 (VidSrc Ultra HD)', serverId: `vidsrc-${tmdbId}-${season}-${episode}` },
-                  { title: 'Server 2 (AutoEmbed HD)', serverId: `autoembed-${tmdbId}-${season}-${episode}` },
-                  { title: 'Server 3 (VidSrc.me HD)', serverId: `vidsrcme-${tmdbId}-${season}-${episode}` },
-                  { title: 'Server 4 (SmashyStream HD)', serverId: `smashy-${tmdbId}-${season}-${episode}` },
-                  { title: 'Server 5 (2Embed HD)', serverId: `2embed-${tmdbId}-${season}-${episode}` },
+                  { title: 'Server 1 (VidSrc Anime - Audio Jepang 🇯🇵)', serverId: `vidsrcanime-${tmdbId}-${season}-${episode}` },
+                  { title: 'Server 2 (VidSrc.pm Anime - Audio Jepang 🇯🇵)', serverId: `vidsrcpmanime-${tmdbId}-${season}-${episode}` },
+                  { title: 'Server 3 (2Embed Skin - Audio Jepang 🇯🇵)', serverId: `2embedskin-${tmdbId}-${season}-${episode}` },
+                  { title: 'Server 4 (VidSrc Ultra HD)', serverId: `vidsrc-${tmdbId}-${season}-${episode}` },
+                  { title: 'Server 5 (AutoEmbed HD)', serverId: `autoembed-${tmdbId}-${season}-${episode}` },
                 ]
               }
             ]
@@ -371,12 +371,26 @@ export async function fetchWajikEpisodeDetail(episodeId: string) {
 
 export async function fetchWajikServerStream(serverId: string) {
   try {
-    if (serverId.startsWith('vidsrc-')) {
-      const parts = serverId.replace('vidsrc-', '').split('-');
+    if (serverId.startsWith('vidsrcanime-')) {
+      const parts = serverId.replace('vidsrcanime-', '').split('-');
       const tId = parts[0] || '131041';
       const sNum = parts[1] || '1';
       const eNum = parts[2] || '1';
-      return { success: true, data: { details: { url: `https://vidsrc.to/embed/tv/${tId}/${sNum}/${eNum}` } } };
+      return { success: true, data: { details: { url: `https://vidsrc.me/embed/anime?tmdb=${tId}&season=${sNum}&episode=${eNum}` } } };
+    }
+    if (serverId.startsWith('vidsrcpmanime-')) {
+      const parts = serverId.replace('vidsrcpmanime-', '').split('-');
+      const tId = parts[0] || '131041';
+      const sNum = parts[1] || '1';
+      const eNum = parts[2] || '1';
+      return { success: true, data: { details: { url: `https://vidsrc.pm/embed/anime/${tId}/${sNum}/${eNum}` } } };
+    }
+    if (serverId.startsWith('2embedskin-')) {
+      const parts = serverId.replace('2embedskin-', '').split('-');
+      const tId = parts[0] || '131041';
+      const sNum = parts[1] || '1';
+      const eNum = parts[2] || '1';
+      return { success: true, data: { details: { url: `https://2embed.skin/embedtv/${tId}&s=${sNum}&e=${eNum}` } } };
     }
     if (serverId.startsWith('autoembed-')) {
       const parts = serverId.replace('autoembed-', '').split('-');
@@ -385,25 +399,11 @@ export async function fetchWajikServerStream(serverId: string) {
       const eNum = parts[2] || '1';
       return { success: true, data: { details: { url: `https://autoembed.co/tv/tmdb/${tId}-${sNum}-${eNum}` } } };
     }
-    if (serverId.startsWith('vidsrcme-')) {
-      const parts = serverId.replace('vidsrcme-', '').split('-');
-      const tId = parts[0] || '131041';
-      const sNum = parts[1] || '1';
-      const eNum = parts[2] || '1';
-      return { success: true, data: { details: { url: `https://vidsrc.me/embed/tv?tmdb=${tId}&season=${sNum}&episode=${eNum}` } } };
-    }
-    if (serverId.startsWith('smashy-')) {
-      const parts = serverId.replace('smashy-', '').split('-');
-      const tId = parts[0] || '131041';
-      const sNum = parts[1] || '1';
-      const eNum = parts[2] || '1';
-      return { success: true, data: { details: { url: `https://embed.smashystream.com/playere.php?tmdb=${tId}&season=${sNum}&episode=${eNum}` } } };
-    }
-    const parts = serverId.replace('2embed-', '').split('-');
+    const parts = serverId.replace('vidsrc-', '').split('-');
     const tId = parts[0] || '131041';
     const sNum = parts[1] || '1';
     const eNum = parts[2] || '1';
-    return { success: true, data: { details: { url: `https://www.2embed.cc/embedtv/${tId}&s=${sNum}&e=${eNum}` } } };
+    return { success: true, data: { details: { url: `https://vidsrc.to/embed/tv/${tId}/${sNum}/${eNum}` } } };
   } catch {
     return { success: false, data: { details: { url: '' } } };
   }
