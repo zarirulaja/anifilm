@@ -70,10 +70,39 @@ export async function fetchWajikAnimeDetail(animeId: string) {
   try {
     const res = await wajikFetch<any>(`/otakudesu/anime/${encodeURIComponent(animeId)}`);
     if (res?.statusCode === 200 && res?.data) return res;
-    throw new Error('Otakudesu anime detail empty');
-  } catch {
-    return await wajikFetch<any>(`/oploverz/anime/${encodeURIComponent(animeId)}`);
-  }
+  } catch {}
+
+  try {
+    const res = await wajikFetch<any>(`/oploverz/anime/${encodeURIComponent(animeId)}`);
+    if (res?.statusCode === 200 && res?.data) return res;
+  } catch {}
+
+  const cleanQuery = animeId
+    .replace(/-(sub|dub)-indo.*/gi, '')
+    .replace(/-(ep|episode|op)-\d+.*/gi, '')
+    .replace(/-/g, ' ')
+    .trim();
+
+  try {
+    const sRes = await wajikFetch<any>(`/otakudesu/search?q=${encodeURIComponent(cleanQuery)}`);
+    const first = sRes?.data?.animeList?.[0];
+    if (first?.animeId) {
+      const detail = await wajikFetch<any>(`/otakudesu/anime/${encodeURIComponent(first.animeId)}`);
+      if (detail?.statusCode === 200 && detail?.data) return detail;
+    }
+  } catch {}
+
+  try {
+    const sRes = await wajikFetch<any>(`/oploverz/search?q=${encodeURIComponent(cleanQuery)}`);
+    const first = sRes?.data?.animeList?.[0];
+    const firstSlug = first?.animeId || first?.slug;
+    if (firstSlug) {
+      const detail = await wajikFetch<any>(`/oploverz/anime/${encodeURIComponent(firstSlug)}`);
+      if (detail?.statusCode === 200 && detail?.data) return detail;
+    }
+  } catch {}
+
+  throw new Error(`Detail anime ${animeId} tidak ditemukan`);
 }
 
 export async function fetchTMDBAnimeSlugDetail(animeId: string) {
@@ -84,10 +113,33 @@ export async function fetchWajikEpisodeDetail(episodeId: string) {
   try {
     const res = await wajikFetch<any>(`/otakudesu/episode/${encodeURIComponent(episodeId)}`);
     if (res?.statusCode === 200 && res?.data) return res;
-    throw new Error('Otakudesu episode detail empty');
-  } catch {
-    return await wajikFetch<any>(`/oploverz/episode/${encodeURIComponent(episodeId)}`);
-  }
+  } catch {}
+
+  try {
+    const res = await wajikFetch<any>(`/oploverz/episode/${encodeURIComponent(episodeId)}`);
+    if (res?.statusCode === 200 && res?.data) return res;
+  } catch {}
+
+  const cleanQuery = episodeId
+    .replace(/-(sub|dub)-indo.*/gi, '')
+    .replace(/-(ep|episode|op)-\d+.*/gi, '')
+    .replace(/-/g, ' ')
+    .trim();
+
+  try {
+    const sRes = await wajikFetch<any>(`/otakudesu/search?q=${encodeURIComponent(cleanQuery)}`);
+    const first = sRes?.data?.animeList?.[0];
+    if (first?.animeId) {
+      const detail = await wajikFetch<any>(`/otakudesu/anime/${encodeURIComponent(first.animeId)}`);
+      const epList = detail?.data?.details?.episodeList || [];
+      const matched = epList.find((e: any) => e.episodeId === episodeId) || epList[0];
+      if (matched?.episodeId) {
+        return await wajikFetch<any>(`/otakudesu/episode/${encodeURIComponent(matched.episodeId)}`);
+      }
+    }
+  } catch {}
+
+  throw new Error(`Detail episode ${episodeId} tidak ditemukan`);
 }
 
 export async function fetchWajikServerStream(serverId: string) {

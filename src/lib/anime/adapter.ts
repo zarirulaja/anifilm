@@ -16,13 +16,32 @@ export function normalizeAnimeSummary(item: any): AnimeSummary {
     posterUrl = item.poster_path.startsWith('http') ? item.poster_path : `https://image.tmdb.org/t/p/w500${item.poster_path}`;
   }
 
+  let rawId = item?.animeId || item?.slug || item?.id || '';
+  if (!rawId && typeof item?.href === 'string' && item.href.trim()) {
+    const parts = item.href.replace(/\/$/, '').split('/');
+    rawId = parts[parts.length - 1] || '';
+  }
+  if (!rawId && typeof item?.otakudesuUrl === 'string' && item.otakudesuUrl.trim()) {
+    const parts = item.otakudesuUrl.replace(/\/$/, '').split('/');
+    rawId = parts[parts.length - 1] || '';
+  }
+  if (!rawId && typeof item?.seriesName === 'string' && item.seriesName.trim()) {
+    rawId = item.seriesName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  }
+  if (!rawId && typeof item?.title === 'string' && item.title.trim()) {
+    rawId = item.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  }
+  if (!rawId) {
+    rawId = 'anime-item';
+  }
+
   return {
-    id: String(item?.animeId || item?.slug || item?.id || ''),
-    title: item?.title || item?.name || 'Untitled Anime',
+    id: String(rawId),
+    title: item?.title || item?.seriesName || item?.name || 'Untitled Anime',
     poster: posterUrl,
-    episodes: item?.episodes ? String(item.episodes) : item?.latestEpisode ? `Ep ${item.latestEpisode}` : undefined,
+    episodes: item?.episodes ? String(item.episodes) : item?.episode ? String(item.episode) : item?.latestEpisode ? `Ep ${item.latestEpisode}` : undefined,
     score: item?.score ? String(item.score).replace('Rating :', '').trim() : item?.vote_average ? item.vote_average.toFixed(1) : undefined,
-    releaseDay: item?.releaseDay || item?.releaseDate || undefined,
+    releaseDay: item?.releaseDay || item?.releaseDate || item?.releaseTime || undefined,
     lastReleaseDate: item?.lastReleaseDate || undefined,
     status: item?.status ? String(item.status).replace('Status :', '').trim() : 'Ongoing',
   };
