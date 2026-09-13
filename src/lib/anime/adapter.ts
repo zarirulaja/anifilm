@@ -63,23 +63,31 @@ export function normalizeHomeResponse(raw: any): {
   ongoing: AnimeSummary[];
   completed: AnimeSummary[];
 } {
-  const ongoingRaw = Array.isArray(raw?.data?.ongoing)
-    ? raw.data.ongoing
-    : Array.isArray(raw?.data?.latestRelease?.animeList)
-    ? raw.data.latestRelease.animeList
-    : (raw?.data?.ongoing?.animeList || []);
+  let ongoingRaw: any[] = [];
+  let completedRaw: any[] = [];
 
-  const completedRaw = Array.isArray(raw?.data?.completed)
-    ? raw.data.completed
-    : Array.isArray(raw?.data?.popularToday?.animeList)
-    ? raw.data.popularToday.animeList
-    : (raw?.data?.completed?.animeList || []);
+  if (Array.isArray(raw?.data?.ongoing?.animeList) && raw.data.ongoing.animeList.length > 0) {
+    ongoingRaw = raw.data.ongoing.animeList;
+  } else if (Array.isArray(raw?.data?.latestRelease?.animeList) && raw.data.latestRelease.animeList.length > 0) {
+    ongoingRaw = raw.data.latestRelease.animeList;
+  } else if (Array.isArray(raw?.data?.ongoing)) {
+    ongoingRaw = raw.data.ongoing;
+  }
+
+  if (Array.isArray(raw?.data?.completed?.animeList) && raw.data.completed.animeList.length > 0) {
+    completedRaw = raw.data.completed.animeList;
+  } else if (Array.isArray(raw?.data?.popularToday?.animeList) && raw.data.popularToday.animeList.length > 0) {
+    completedRaw = raw.data.popularToday.animeList;
+  } else if (Array.isArray(raw?.data?.completed)) {
+    completedRaw = raw.data.completed;
+  }
 
   return {
     ongoing: ongoingRaw.map(normalizeAnimeSummary),
     completed: completedRaw.map(normalizeAnimeSummary),
   };
 }
+
 
 export function normalizePaginatedList(raw: any): PaginatedAnimeResult {
   const list = Array.isArray(raw?.data?.animeList)
