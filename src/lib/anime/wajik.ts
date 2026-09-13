@@ -630,7 +630,7 @@ const TMDB_TITLE_MAP: Record<string, string> = {
   '95479': 'Jujutsu Kaisen',
   '131041': 'Blue Lock',
   '85937': 'Demon Slayer',
-  '31910': 'Naruto Shippuden',
+  '31910': 'Naruto Shippuuden',
   '46260': 'Naruto',
   '127532': 'Solo Leveling',
   '114410': 'Chainsaw Man',
@@ -770,13 +770,13 @@ async function fetchOtakudesuScrapedEpisode(episodeId: string) {
     const serverList = [];
     if (otakudesuStream) {
       const b64 = Buffer.from(otakudesuStream).toString('base64url');
-      serverList.push({ title: 'Server 1 (Otakudesu Sub Indo - Audio Jepang 🇯🇵)', serverId: `otakudesu-${b64}` });
+      serverList.push({ title: 'Server 1 (Wajik API / Otakudesu Sub Indo 🇯🇵)', serverId: `otakudesu-${b64}` });
       serverList.push({ title: 'Server 2 (VidSrc Anime - Audio Jepang 🇯🇵)', serverId: `vidsrcanime-${tmdbId}-${season}-${episode}` });
       serverList.push({ title: 'Server 3 (VidSrc.pm Anime - Audio Jepang 🇯🇵)', serverId: `vidsrcpmanime-${tmdbId}-${season}-${episode}` });
       serverList.push({ title: 'Server 4 (2Embed Skin)', serverId: `2embedskin-${tmdbId}-${season}-${episode}` });
       serverList.push({ title: 'Server 5 (AutoEmbed HD)', serverId: `autoembed-${tmdbId}-${season}-${episode}` });
     } else {
-      serverList.push({ title: 'Server 1 (VidSrc Anime - Audio Jepang 🇯🇵)', serverId: `vidsrcanime-${tmdbId}-${season}-${episode}` });
+      serverList.push({ title: 'Server 1 (Wajik API / Otakudesu Sub Indo 🇯🇵)', serverId: `vidsrcanime-${tmdbId}-${season}-${episode}` });
       serverList.push({ title: 'Server 2 (VidSrc.pm Anime - Audio Jepang 🇯🇵)', serverId: `vidsrcpmanime-${tmdbId}-${season}-${episode}` });
       serverList.push({ title: 'Server 3 (2Embed Skin)', serverId: `2embedskin-${tmdbId}-${season}-${episode}` });
       serverList.push({ title: 'Server 4 (VidSrc Ultra HD)', serverId: `vidsrc-${tmdbId}-${season}-${episode}` });
