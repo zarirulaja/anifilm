@@ -71,54 +71,89 @@ export async function fetchWajikSearch(query: string) {
 
 function cleanAnimeSlug(slug: string): string {
   return slug
+    .replace(/-subtitle-indonesia.*/gi, '')
     .replace(/-(sub|dub)-indo.*/gi, '')
-    .replace(/-(ep|episode|op)-\d+.*/gi, '')
-    .replace(/-episode-\d+.*/gi, '')
-    .replace(/-\d+$/g, '')
+    .replace(/-(ep|episode|op)[-_]?\d+.*/gi, '')
+    .replace(/-episode.*/gi, '')
     .trim();
 }
 
 export async function fetchWajikAnimeDetail(animeId: string) {
   const cleanSlug = cleanAnimeSlug(animeId);
-  const cleanQuery = cleanSlug.replace(/-/g, ' ').trim();
+  const cleanQuery = (cleanSlug || animeId).replace(/-/g, ' ').trim();
 
-  // 1. Try direct fetch for original animeId
-  try {
-    const res = await wajikFetch<any>(`/otakudesu/anime/${encodeURIComponent(animeId)}`);
-    if (res?.statusCode === 200 && res?.data?.details?.episodeList?.length > 1) return res;
-  } catch {}
+  // 1. Prepare candidates for direct fetch
+  const candidateSlugs: string[] = [];
+  if (animeId) candidateSlugs.push(animeId);
+  if (cleanSlug && !candidateSlugs.includes(cleanSlug)) candidateSlugs.push(cleanSlug);
+  if (cleanSlug && !cleanSlug.endsWith('-sub-indo')) candidateSlugs.push(`${cleanSlug}-sub-indo`);
+  if (animeId && !animeId.endsWith('-sub-indo') && !candidateSlugs.includes(`${animeId}-sub-indo`)) {
+    candidateSlugs.push(`${animeId}-sub-indo`);
+  }
 
-  try {
-    const res = await wajikFetch<any>(`/oploverz/anime/${encodeURIComponent(animeId)}`);
-    if (res?.statusCode === 200 && res?.data?.details?.episodeList?.length > 1) return res;
-  } catch {}
-
-  // 2. Try direct fetch for cleanSlug
-  if (cleanSlug !== animeId) {
+  // Direct fetch across Otakudesu & Oploverz for candidate slugs
+  for (const slug of candidateSlugs) {
     try {
-      const res = await wajikFetch<any>(`/otakudesu/anime/${encodeURIComponent(cleanSlug)}`);
+      const res = await wajikFetch<any>(`/otakudesu/anime/${encodeURIComponent(slug)}`);
       if (res?.statusCode === 200 && res?.data?.details?.episodeList?.length > 0) return res;
     } catch {}
 
     try {
-      const res = await wajikFetch<any>(`/oploverz/anime/${encodeURIComponent(cleanSlug)}`);
+      const res = await wajikFetch<any>(`/oploverz/anime/${encodeURIComponent(slug)}`);
       if (res?.statusCode === 200 && res?.data?.details?.episodeList?.length > 0) return res;
     } catch {}
   }
 
-  // 3. Search Oploverz for exact match or highest episode count
+  // 2. Search Otakudesu for matching anime
+  try {
+    const sRes = await wajikFetch<any>(`/otakudesu/search?q=${encodeURIComponent(cleanQuery)}`);
+    const list = sRes?.data?.animeList || [];
+    if (list.length > 0) {
+      const matched = list.find((item: any) => {
+        const itemSlug = item.animeId || item.slug || '';
+        const itemTitle = (item.title || '').toLowerCase();
+        const normQuery = cleanQuery.toLowerCase();
+        const normTitle = itemTitle.replace(/[^a-z0-9]/g, '');
+        const normClean = normQuery.replace(/[^a-z0-9]/g, '');
+
+        return (
+          itemSlug === animeId ||
+          itemSlug === cleanSlug ||
+          itemSlug === `${cleanSlug}-sub-indo` ||
+          itemTitle === normQuery ||
+          (normClean.length > 3 && normTitle.includes(normClean))
+        );
+      });
+
+      const targetSlug = matched?.animeId || matched?.slug;
+      if (targetSlug) {
+        const detail = await wajikFetch<any>(`/otakudesu/anime/${encodeURIComponent(targetSlug)}`);
+        if (detail?.statusCode === 200 && detail?.data) return detail;
+      }
+    }
+  } catch {}
+
+  // 3. Search Oploverz for matching anime
   try {
     const sRes = await wajikFetch<any>(`/oploverz/search?q=${encodeURIComponent(cleanQuery)}`);
     const list = sRes?.data?.animeList || [];
     if (list.length > 0) {
-      const exact = list.find(
-        (item: any) =>
-          item.slug === cleanSlug ||
-          item.animeId === cleanSlug ||
-          (item.title && item.title.toLowerCase() === cleanQuery.toLowerCase())
-      );
-      const target = exact || list[0];
-      const targetSlug = target.slug || target.animeId;
+      const matched = list.find((item: any) => {
+        const itemSlug = item.slug || item.animeId || '';
+        const itemTitle = (item.title || '').toLowerCase();
+        const normQuery = cleanQuery.toLowerCase();
+        const normTitle = itemTitle.replace(/[^a-z0-9]/g, '');
+        const normClean = normQuery.replace(/[^a-z0-9]/g, '');
+
+        return (
+          itemSlug === animeId ||
+          itemSlug === cleanSlug ||
+          itemTitle === normQuery ||
+          (normClean.length > 3 && normTitle.includes(normClean))
+        );
+      });
+
+      const targetSlug = matched?.slug || matched?.animeId;
       if (targetSlug) {
         const detail = await wajikFetch<any>(`/oploverz/anime/${encodeURIComponent(targetSlug)}`);
         if (detail?.statusCode === 200 && detail?.data) return detail;
@@ -126,25 +161,7 @@ export async function fetchWajikAnimeDetail(animeId: string) {
     }
   } catch {}
 
-  // 4. Search Otakudesu for exact match or highest episode count
-  try {
-    const sRes = await wajikFetch<any>(`/otakudesu/search?q=${encodeURIComponent(cleanQuery)}`);
-    const list = sRes?.data?.animeList || [];
-    if (list.length > 0) {
-      const exact = list.find(
-        (item: any) =>
-          item.animeId === cleanSlug ||
-          (item.title && item.title.toLowerCase() === cleanQuery.toLowerCase())
-      );
-      const target = exact || list[0];
-      if (target?.animeId) {
-        const detail = await wajikFetch<any>(`/otakudesu/anime/${encodeURIComponent(target.animeId)}`);
-        if (detail?.statusCode === 200 && detail?.data) return detail;
-      }
-    }
-  } catch {}
-
-  // 5. Fallback object generation with full 24+ episodes
+  // 4. Fallback object generation with full 24+ episodes (prevents showing wrong anime B)
   const epMatch = animeId.match(/(?:ep|episode|op)[-_]?(\d+)/i);
   const maxEp = epMatch ? parseInt(epMatch[1], 10) : 24;
   const totalEpCount = Math.max(maxEp, 24);
@@ -191,26 +208,33 @@ export async function fetchWajikEpisodeDetail(episodeId: string) {
   } catch {}
 
   const cleanQuery = episodeId
+    .replace(/-subtitle-indonesia.*/gi, '')
     .replace(/-(sub|dub)-indo.*/gi, '')
-    .replace(/-(ep|episode|op)-\d+.*/gi, '')
+    .replace(/-(ep|episode|op)[-_]?\d+.*/gi, '')
     .replace(/-/g, ' ')
     .trim();
 
   try {
     const sRes = await wajikFetch<any>(`/otakudesu/search?q=${encodeURIComponent(cleanQuery)}`);
-    const first = sRes?.data?.animeList?.[0];
-    if (first?.animeId) {
-      const detail = await wajikFetch<any>(`/otakudesu/anime/${encodeURIComponent(first.animeId)}`);
+    const list = sRes?.data?.animeList || [];
+    const matchedAnime = list.find((item: any) => {
+      const title = (item.title || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const normQ = cleanQuery.toLowerCase().replace(/[^a-z0-9]/g, '');
+      return normQ.length > 3 && title.includes(normQ);
+    }) || list[0];
+
+    if (matchedAnime?.animeId) {
+      const detail = await wajikFetch<any>(`/otakudesu/anime/${encodeURIComponent(matchedAnime.animeId)}`);
       const epList = detail?.data?.details?.episodeList || [];
-      const matched = epList.find((e: any) => e.episodeId === episodeId) || epList[0];
-      if (matched?.episodeId) {
-        const epDetail = await wajikFetch<any>(`/otakudesu/episode/${encodeURIComponent(matched.episodeId)}`);
+      const matchedEp = epList.find((e: any) => e.episodeId === episodeId);
+      if (matchedEp?.episodeId) {
+        const epDetail = await wajikFetch<any>(`/otakudesu/episode/${encodeURIComponent(matchedEp.episodeId)}`);
         if (epDetail?.statusCode === 200 && epDetail?.data) return epDetail;
       }
     }
   } catch {}
 
-  const animeSlug = episodeId.replace(/-(ep|episode|op)-\d+.*/gi, '');
+  const animeSlug = episodeId.replace(/-(ep|episode|op)[-_]?\d+.*/gi, '');
   return {
     statusCode: 200,
     statusMessage: 'OK',

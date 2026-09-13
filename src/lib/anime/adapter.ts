@@ -16,20 +16,51 @@ export function normalizeAnimeSummary(item: any): AnimeSummary {
     posterUrl = item.poster_path.startsWith('http') ? item.poster_path : `https://image.tmdb.org/t/p/w500${item.poster_path}`;
   }
 
-  let rawId = item?.animeId || item?.slug || item?.id || '';
-  if (!rawId && typeof item?.href === 'string' && item.href.trim()) {
-    const parts = item.href.replace(/\/$/, '').split('/');
-    rawId = parts[parts.length - 1] || '';
+  // Handle Oploverz seriesName format: "One Piece\t\t\t\tOne Piece Episode..."
+  let seriesTitle = '';
+  if (typeof item?.seriesName === 'string' && item.seriesName.trim()) {
+    seriesTitle = item.seriesName.split('\t')[0].trim();
   }
-  if (!rawId && typeof item?.otakudesuUrl === 'string' && item.otakudesuUrl.trim()) {
-    const parts = item.otakudesuUrl.replace(/\/$/, '').split('/');
-    rawId = parts[parts.length - 1] || '';
+
+  // Extract display title
+  let displayTitle = seriesTitle || item?.title || item?.name || 'Untitled Anime';
+  displayTitle = displayTitle
+    .replace(/\s+Episode\s+\d+.*$/i, '')
+    .replace(/\s+Subtitle\s+Indonesia.*$/i, '')
+    .replace(/\s+Sub\s+Indo.*$/i, '')
+    .trim();
+
+  let rawId = item?.animeId || item?.slug || '';
+
+  // If no explicit animeId/slug, derive slug from seriesTitle if available
+  if (!rawId && seriesTitle) {
+    rawId = seriesTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   }
-  if (!rawId && typeof item?.seriesName === 'string' && item.seriesName.trim()) {
-    rawId = item.seriesName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+  // Extract from href or otakudesuUrl if rawId is still empty or looks like an episode slug
+  if (!rawId || rawId.includes('-episode-') || rawId.includes('-ep-')) {
+    const urlStr = item?.href || item?.otakudesuUrl || '';
+    if (typeof urlStr === 'string' && urlStr.trim()) {
+      const parts = urlStr.replace(/\/$/, '').split('/');
+      const lastPart = parts[parts.length - 1] || '';
+      if (lastPart) {
+        rawId = lastPart;
+      }
+    }
   }
-  if (!rawId && typeof item?.title === 'string' && item.title.trim()) {
-    rawId = item.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+  // Clean episode indicators from rawId if it extracted an episode URL
+  if (rawId) {
+    rawId = rawId
+      .replace(/-subtitle-indonesia.*/gi, '')
+      .replace(/-(sub|dub)-indo.*/gi, '')
+      .replace(/-(ep|episode|op)[-_]?\d+.*/gi, '')
+      .replace(/-episode.*/gi, '')
+      .trim();
+  }
+
+  if (!rawId && displayTitle) {
+    rawId = displayTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   }
   if (!rawId) {
     rawId = 'anime-item';
@@ -37,7 +68,7 @@ export function normalizeAnimeSummary(item: any): AnimeSummary {
 
   return {
     id: String(rawId),
-    title: item?.title || item?.seriesName || item?.name || 'Untitled Anime',
+    title: displayTitle || 'Untitled Anime',
     poster: posterUrl,
     episodes: item?.episodes ? String(item.episodes) : item?.episode ? String(item.episode) : item?.latestEpisode ? `Ep ${item.latestEpisode}` : undefined,
     score: item?.score ? String(item.score).replace('Rating :', '').trim() : item?.vote_average ? item.vote_average.toFixed(1) : undefined,
