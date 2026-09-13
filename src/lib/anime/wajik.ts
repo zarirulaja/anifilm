@@ -211,12 +211,50 @@ export async function fetchWajikAnimeDetail(animeId: string) {
     }
   } catch {}
 
-  // 4. Fallback object generation with full 24+ episodes (prevents showing wrong anime B)
+  // 4. Fallback object generation with real metadata extracted from search summary if available
+  let searchSummary: any = null;
+  try {
+    const sRes = await wajikFetch<any>(`/otakudesu/search?q=${encodeURIComponent(cleanQuery)}`);
+    const list = sRes?.data?.animeList || [];
+    if (list.length > 0) {
+      searchSummary = list.find((item: any) => {
+        const itemSlug = item.animeId || item.slug || '';
+        return candidateSlugs.includes(itemSlug) || candidateSlugs.some((c) => itemSlug.includes(c));
+      }) || list[0];
+    }
+  } catch {}
+
+  if (!searchSummary) {
+    try {
+      const sRes = await wajikFetch<any>(`/oploverz/search?q=${encodeURIComponent(cleanQuery)}`);
+      const list = sRes?.data?.animeList || [];
+      if (list.length > 0) {
+        searchSummary = list.find((item: any) => {
+          const itemSlug = item.slug || item.animeId || '';
+          return candidateSlugs.includes(itemSlug) || candidateSlugs.some((c) => itemSlug.includes(c));
+        }) || list[0];
+      }
+    } catch {}
+  }
+
   const epMatch = animeId.match(/(?:ep|episode|op)[-_]?(\d+)/i);
   const maxEp = epMatch ? parseInt(epMatch[1], 10) : 24;
   const totalEpCount = Math.max(maxEp, 24);
 
-  const readableTitle = (cleanQuery || animeId.replace(/[-_]/g, ' ')).replace(/\b\w/g, (c) => c.toUpperCase());
+  const fallbackTitle = searchSummary?.title
+    ? String(searchSummary.title).replace(/\s+Sub.*$/i, '').trim()
+    : (cleanQuery || animeId.replace(/[-_]/g, ' ')).replace(/\b\w/g, (c) => c.toUpperCase());
+
+  const fallbackPoster = searchSummary?.poster || 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=400&q=80';
+  const fallbackScore = searchSummary?.score ? String(searchSummary.score).replace('Rating :', '').trim() : '7.8';
+  const fallbackStatus = searchSummary?.status ? String(searchSummary.status).replace('Status :', '').trim() : 'Ongoing';
+  const fallbackGenres = Array.isArray(searchSummary?.genreList) && searchSummary.genreList.length > 0
+    ? searchSummary.genreList.map((g: any) => ({
+        title: typeof g === 'string' ? g : g?.title || g?.name || 'Drama',
+        genreId: typeof g === 'string' ? g : g?.genreId || g?.id || 'drama',
+      }))
+    : [{ title: 'Drama', genreId: 'drama' }, { title: 'Historical', genreId: 'historical' }];
+
   return {
     statusCode: 200,
     statusMessage: 'OK',
@@ -224,15 +262,15 @@ export async function fetchWajikAnimeDetail(animeId: string) {
       details: {
         id: animeId,
         animeId,
-        title: readableTitle,
-        japanese: readableTitle,
-        poster: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=400&q=80',
-        synopsis: { paragraphList: ['Saksikan tayangan anime pilihan subtitle Indonesia dengan pemutar video kualitas HD.'] },
-        status: 'Ongoing',
-        score: '8.5',
+        title: fallbackTitle,
+        japanese: fallbackTitle,
+        poster: fallbackPoster,
+        synopsis: { paragraphList: [`Saksikan tayangan anime ${fallbackTitle} subtitle Indonesia dengan pemutar video kualitas HD.`] },
+        status: fallbackStatus,
+        score: fallbackScore,
         type: 'TV',
         episodes: `${totalEpCount} Episode`,
-        genreList: [{ title: 'Action', genreId: 'action' }, { title: 'Animation', genreId: 'animation' }],
+        genreList: fallbackGenres,
         episodeList: Array.from({ length: totalEpCount }).map((_, i) => ({
           title: `Episode ${i + 1}`,
           episodeId: `${cleanSlug || animeId}-ep-${i + 1}`,
