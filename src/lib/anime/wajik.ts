@@ -125,7 +125,7 @@ export async function getSeasonAndEpisode(tmdbId: string, absEpisodeNum: number)
   }
 }
 
-const WAJIK_API_URL = process.env.WAJIK_API_URL || 'https://wajik-anime-api.vercel.app';
+const WAJIK_API_URL = process.env.WAJIK_API_URL || 'https://wajik-api-gold.vercel.app';
 
 async function wajikFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const url = `${WAJIK_API_URL}${endpoint}`;
