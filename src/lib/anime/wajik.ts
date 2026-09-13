@@ -28,6 +28,52 @@ async function wajikFetch<T>(endpoint: string, options: RequestInit = {}): Promi
   }
 }
 
+export async function resolveTmdbAnimeId(animeSlug: string): Promise<string> {
+  const cleanId = animeSlug.replace(/-episode-\d+.*/i, '').trim();
+
+  // If already a valid TMDB TV numeric ID
+  if (/^\d+$/.test(cleanId)) {
+    try {
+      const directRes = await fetch(`https://api.themoviedb.org/3/tv/${cleanId}?api_key=${TMDB_API_KEY}`);
+      if (directRes.ok) {
+        const d = await directRes.json();
+        if (d.id) return String(d.id);
+      }
+    } catch {}
+  }
+
+  // Clean slug query (Step 1)
+  const q1 = cleanId.replace(/-(sub|dub)-indo.*/gi, '').replace(/[-_]/g, ' ').trim();
+  try {
+    const searchRes = await fetch(`https://api.themoviedb.org/3/search/tv?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(q1)}&language=id-ID`);
+    const searchJson = await searchRes.json();
+    if (searchJson.results?.[0]?.id) {
+      return String(searchJson.results[0].id);
+    }
+  } catch {}
+
+  // Strip season/number descriptors (Step 2)
+  const q2 = q1
+    .replace(/\b(\d+nd|\d+rd|\d+th|\d+st)\b/gi, '')
+    .replace(/\bseason\s*\d*\b/gi, '')
+    .replace(/\bs\d+\b/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (q2 && q2 !== q1) {
+    try {
+      const searchRes2 = await fetch(`https://api.themoviedb.org/3/search/tv?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(q2)}&language=id-ID`);
+      const searchJson2 = await searchRes2.json();
+      if (searchJson2.results?.[0]?.id) {
+        return String(searchJson2.results[0].id);
+      }
+    } catch {}
+  }
+
+  // Popular anime defaults if unknown
+  return '95479'; // Jujutsu Kaisen
+}
+
 export async function fetchTMDBAnimeFallback(page: number = 1) {
   try {
     const url = `https://api.themoviedb.org/3/discover/tv?api_key=${TMDB_API_KEY}&with_genres=16&with_origin_country=JP&sort_by=popularity.desc&language=id-ID&page=${page}`;
@@ -67,42 +113,20 @@ export async function fetchTMDBAnimeFallback(page: number = 1) {
 
 export async function fetchTMDBAnimeSlugDetail(animeId: string) {
   try {
-    let cleanTitle = animeId
-      .replace(/-sub-indo.*/i, '')
-      .replace(/-s\d+.*/i, '')
-      .replace(/-season-\d+.*/i, '')
-      .replace(/-/g, ' ')
-      .trim();
-
-    if (cleanTitle.toLowerCase().includes('blelock')) {
-      cleanTitle = cleanTitle.replace(/blelock/i, 'blue lock');
-    }
-
-    const searchUrl = `https://api.themoviedb.org/3/search/tv?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(cleanTitle)}&language=id-ID`;
-    const searchRes = await fetch(searchUrl);
-    const searchJson = await searchRes.json();
-
-    let found = searchJson.results?.[0];
-    if (!found) {
-      const discUrl = `https://api.themoviedb.org/3/discover/tv?api_key=${TMDB_API_KEY}&with_genres=16&with_origin_country=JP&language=id-ID`;
-      const discRes = await fetch(discUrl);
-      const discJson = await discRes.json();
-      found = discJson.results?.[0];
-    }
-
-    const tmdbId = found?.id || 108659;
+    const tmdbId = await resolveTmdbAnimeId(animeId);
     const url = `https://api.themoviedb.org/3/tv/${tmdbId}?api_key=${TMDB_API_KEY}&language=id-ID`;
     const res = await fetch(url);
     const d = await res.json();
 
-    const title = d.name || d.original_name || cleanTitle.toUpperCase();
+    const title = d.name || d.original_name || animeId.replace(/-/g, ' ').toUpperCase();
     const epCount = d.number_of_episodes || 24;
 
     return {
       success: true,
       data: {
         details: {
-          id: animeId,
+          id: String(animeId),
+          animeId: String(animeId),
           title,
           japanese: d.original_name || title,
           poster: d.poster_path ? `https://image.tmdb.org/t/p/w500${d.poster_path}` : 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=400&q=80',
@@ -126,6 +150,7 @@ export async function fetchTMDBAnimeSlugDetail(animeId: string) {
       data: {
         details: {
           id: animeId,
+          animeId: animeId,
           title: animeId.replace(/-/g, ' ').toUpperCase(),
           poster: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=400&q=80',
           synopsis: { paragraphList: ['Sinopsis anime tayangan.'] },
@@ -202,26 +227,36 @@ export async function fetchWajikEpisodeDetail(episodeId: string) {
   try {
     return await wajikFetch<any>(`/otakudesu/episode/${encodeURIComponent(episodeId)}`);
   } catch {
-    const cleanEp = episodeId.split('-episode-').pop() || '1';
+    const parts = episodeId.split('-episode-');
+    const animeSlug = parts[0] || 'jujutsu-kaisen';
+    let epNum = parts[1] ? parts[1].replace(/\D/g, '') : '1';
+    if (!epNum) epNum = '1';
+
+    const tmdbId = await resolveTmdbAnimeId(animeSlug);
+
+    const streamUrl = `https://autoembed.co/tv/tmdb/${tmdbId}-1-${epNum}`;
+
     return {
       success: true,
       data: {
         details: {
           id: episodeId,
-          title: `Episode ${cleanEp}`,
-          animeId: episodeId.replace(/-episode-.*/, ''),
-          defaultStreamingUrl: 'https://autoembed.co/tv/tmdb/108659-1-1',
-          hasPrevEpisode: Number(cleanEp) > 1,
-          prevEpisode: Number(cleanEp) > 1 ? { episodeId: `${episodeId.replace(/-episode-.*/, '')}-episode-${Number(cleanEp) - 1}` } : null,
+          title: `Episode ${epNum}`,
+          animeId: animeSlug,
+          defaultStreamingUrl: streamUrl,
+          hasPrevEpisode: Number(epNum) > 1,
+          prevEpisode: Number(epNum) > 1 ? { episodeId: `${animeSlug}-episode-${Number(epNum) - 1}` } : null,
           hasNextEpisode: true,
-          nextEpisode: { episodeId: `${episodeId.replace(/-episode-.*/, '')}-episode-${Number(cleanEp) + 1}` },
+          nextEpisode: { episodeId: `${animeSlug}-episode-${Number(epNum) + 1}` },
           server: {
             qualityList: [
               {
                 title: 'HD 720p Sub Indo',
                 serverList: [
-                  { title: 'Server AutoEmbed HD', serverId: 'autoembed' },
-                  { title: 'Server VidLink HD', serverId: 'vidlink' },
+                  { title: 'Server AutoEmbed HD', serverId: `autoembed-${tmdbId}-1-${epNum}` },
+                  { title: 'Server 2Embed HD', serverId: `2embed-${tmdbId}-1-${epNum}` },
+                  { title: 'Server VidLink HD', serverId: `vidlink-${tmdbId}-1-${epNum}` },
+                  { title: 'Server VidSrc HD', serverId: `vidsrc-${tmdbId}-1-${epNum}` },
                 ]
               }
             ]
@@ -236,14 +271,28 @@ export async function fetchWajikServerStream(serverId: string) {
   try {
     return await wajikFetch<any>(`/otakudesu/server/${encodeURIComponent(serverId)}`);
   } catch {
-    return {
-      success: true,
-      data: {
-        details: {
-          url: 'https://autoembed.co/tv/tmdb/108659-1-1'
-        }
-      }
-    };
+    if (serverId.startsWith('2embed-')) {
+      const parts = serverId.replace('2embed-', '').split('-');
+      const tId = parts[0] || '95479';
+      const eNum = parts[2] || '1';
+      return { success: true, data: { details: { url: `https://www.2embed.cc/embedtv/${tId}&s=1&e=${eNum}` } } };
+    }
+    if (serverId.startsWith('vidlink-')) {
+      const parts = serverId.replace('vidlink-', '').split('-');
+      const tId = parts[0] || '95479';
+      const eNum = parts[2] || '1';
+      return { success: true, data: { details: { url: `https://vidlink.pro/tv/${tId}/1/${eNum}` } } };
+    }
+    if (serverId.startsWith('vidsrc-')) {
+      const parts = serverId.replace('vidsrc-', '').split('-');
+      const tId = parts[0] || '95479';
+      const eNum = parts[2] || '1';
+      return { success: true, data: { details: { url: `https://vidsrc.to/embed/tv/${tId}/1/${eNum}` } } };
+    }
+    const parts = serverId.replace('autoembed-', '').split('-');
+    const tId = parts[0] || '95479';
+    const eNum = parts[2] || '1';
+    return { success: true, data: { details: { url: `https://autoembed.co/tv/tmdb/${tId}-1-${eNum}` } } };
   }
 }
 
@@ -258,3 +307,4 @@ export async function fetchWajikGenres() {
 export async function fetchWajikGenreAnime(genreId: string, page: number = 1) {
   return wajikFetch<any>(`/otakudesu/genre/${encodeURIComponent(genreId)}?page=${page}`);
 }
+
