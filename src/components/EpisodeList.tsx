@@ -13,15 +13,30 @@ interface EpisodeListProps {
 
 export default function EpisodeList({ animeId, episodes, watchedEpisodeIds = [] }: EpisodeListProps) {
   const [filterQuery, setFilterQuery] = useState('');
+  const [selectedBatchIndex, setSelectedBatchIndex] = useState(0);
 
-  const filteredEpisodes = episodes.filter((ep) =>
-    ep.title.toLowerCase().includes(filterQuery.toLowerCase()) ||
-    ep.episodeId.toLowerCase().includes(filterQuery.toLowerCase())
-  );
+  const BATCH_SIZE = 50;
+
+  // Generate episode batches if more than 50 episodes
+  const totalBatches = Math.ceil(episodes.length / BATCH_SIZE);
+  const batches = Array.from({ length: totalBatches }).map((_, idx) => {
+    const start = idx * BATCH_SIZE + 1;
+    const end = Math.min((idx + 1) * BATCH_SIZE, episodes.length);
+    return { start, end, label: `${start}-${end}` };
+  });
+
+  const isFiltering = filterQuery.trim().length > 0;
+
+  const displayEpisodes = isFiltering
+    ? episodes.filter((ep) =>
+        ep.title.toLowerCase().includes(filterQuery.toLowerCase()) ||
+        ep.episodeId.toLowerCase().includes(filterQuery.toLowerCase())
+      )
+    : episodes.slice(selectedBatchIndex * BATCH_SIZE, (selectedBatchIndex + 1) * BATCH_SIZE);
 
   return (
     <div className="space-y-6">
-      {/* Search / Filter bar for episodes */}
+      {/* Search & Header Bar */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-900/60 p-4 rounded-2xl border border-slate-800">
         <h3 className="text-lg font-bold text-white flex items-center gap-2">
           <span>Daftar Episode</span>
@@ -44,14 +59,33 @@ export default function EpisodeList({ animeId, episodes, watchedEpisodeIds = [] 
         )}
       </div>
 
+      {/* Episode Batch Range Tabs (shown when total > 50 and not filtering) */}
+      {!isFiltering && totalBatches > 1 && (
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-thin">
+          {batches.map((batch, idx) => (
+            <button
+              key={batch.label}
+              onClick={() => setSelectedBatchIndex(idx)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
+                selectedBatchIndex === idx
+                  ? 'bg-red-600 text-white shadow-md'
+                  : 'bg-slate-900 text-slate-400 hover:bg-slate-800 hover:text-slate-200 border border-slate-800'
+              }`}
+            >
+              Episode {batch.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Episodes Grid */}
-      {filteredEpisodes.length === 0 ? (
+      {displayEpisodes.length === 0 ? (
         <div className="p-8 text-center text-slate-500 bg-slate-900/30 rounded-2xl border border-slate-800/50">
           Episode tidak ditemukan.
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-          {filteredEpisodes.map((ep) => {
+          {displayEpisodes.map((ep) => {
             const isWatched = watchedEpisodeIds.includes(ep.episodeId);
             return (
               <Link

@@ -9,10 +9,17 @@ import {
 } from './types';
 
 export function normalizeAnimeSummary(item: any): AnimeSummary {
+  let posterUrl = 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=400&q=80';
+  if (typeof item?.poster === 'string' && item.poster && !item.poster.includes('undefined')) {
+    posterUrl = item.poster;
+  } else if (typeof item?.poster_path === 'string' && item.poster_path && item.poster_path !== 'undefined') {
+    posterUrl = item.poster_path.startsWith('http') ? item.poster_path : `https://image.tmdb.org/t/p/w500${item.poster_path}`;
+  }
+
   return {
     id: String(item?.animeId || item?.id || ''),
     title: item?.title || item?.name || 'Untitled Anime',
-    poster: item?.poster || item?.poster_path ? (item?.poster_path?.startsWith('http') ? item.poster_path : `https://image.tmdb.org/t/p/w500${item.poster_path}`) : 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=400&q=80',
+    poster: posterUrl,
     episodes: item?.episodes ? String(item.episodes) : undefined,
     score: item?.score ? String(item.score).replace('Rating :', '').trim() : item?.vote_average ? item.vote_average.toFixed(1) : undefined,
     releaseDay: item?.releaseDay || undefined,

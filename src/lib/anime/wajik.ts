@@ -1,76 +1,132 @@
-const OTAKUDESU_BASE = 'https://otakudesu.cloud';
 const TMDB_API_KEY = process.env.TMDB_API_KEY || '4e44d9029b1270a757cddc766a1bcb63';
 
-const FETCH_HEADERS = {
-  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-  'Accept-Language': 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
+// Direct Map for popular anime slugs to their official TMDB TV show IDs
+const POPULAR_SLUG_MAP: Record<string, string> = {
+  'one-piece': '37854',
+  '1piece': '37854',
+  'blue-lock': '131041',
+  'bluelock': '131041',
+  'jujutsu-kaisen': '95479',
+  'jjk': '95479',
+  'naruto-shippuden': '31910',
+  'naruto': '46260',
+  'attack-on-titan': '1429',
+  'shingeki-no-kyojin': '1429',
+  'aot': '1429',
+  'demon-slayer': '85937',
+  'kimetsu-no-yaiba': '85937',
+  'solo-leveling': '127532',
+  'chainsaw-man': '114410',
+  'frieren': '209867',
+  'sousou-no-frieren': '209867',
+  'my-hero-academia': '65930',
+  'boku-no-hero-academia': '65930',
+  'mha': '65930',
+  'dragon-ball-super': '62715',
+  'dragon-ball-z': '12971',
+  'dragon-ball': '12609',
+  'bleach': '30984',
+  'death-note': '13916',
+  'one-punch-man': '63926',
+  'opm': '63926',
+  'tokyo-ghoul': '61374',
+  'seven-deadly-sins': '62104',
+  'nanatsu-no-taizai': '62104',
+  'spy-x-family': '120089',
+  'kaiju-no-8': '207468',
+  'dandadan': '213713',
+  'hunter-x-hunter': '46298',
+  'hxh': '46298',
+  're-zero': '66263',
+  'black-clover': '73223',
+  'tokyo-revengers': '106454',
+  'fullmetal-alchemist': '31911',
+  'haikyuu': '60625',
+  'steins-gate': '38692',
+  'sword-art-online': '45782',
+  'sao': '45782',
+  'overlord': '63923',
+  'classroom-of-the-elite': '72636',
+  'youzitsu': '72636',
 };
 
-export function fixAnimeSlugTypos(slug: string): string {
-  let text = slug.toLowerCase();
-  text = text.replace(/b[le|lu|u]+ck/g, 'blue lock');
-  text = text.replace(/boku-no-hero-academia/g, 'my hero academia');
-  text = text.replace(/shingeki-no-kyojin/g, 'attack on titan');
-  text = text.replace(/kimetsu-no-yaiba/g, 'demon slayer');
-  text = text.replace(/kage-no-jitsuryokusha/g, 'the eminence in shadow');
-  text = text.replace(/tensei-shitara-slime/g, 'that time i got reincarnated as a slime');
-  text = text.replace(/jujutsu-kaisen/g, 'jujutsu kaisen');
-  return text;
-}
+export async function resolveTmdbAnimeId(animeSlug: string): Promise<string> {
+  const cleanId = animeSlug
+    .replace(/-ep(isode)?-\d+.*/i, '')
+    .replace(/-(sub|dub)-indo.*/gi, '')
+    .trim();
 
-export async function resolveTmdbAnimeId(animeSlug: string): Promise<string | null> {
-  const cleanId = animeSlug.replace(/-episode-\d+.*/i, '').trim();
-
-  if (/b[le|lu|u]+ck/i.test(cleanId) || /blue.*lock/i.test(cleanId)) {
-    return '131041';
-  }
-  if (/jujutsu.*kaisen/i.test(cleanId)) {
-    return '95479';
-  }
+  // 1. If cleanId is numeric, verify directly
   if (/^\d+$/.test(cleanId)) {
     try {
-      const directRes = await fetch(`https://api.themoviedb.org/3/tv/${cleanId}?api_key=${TMDB_API_KEY}`);
-      if (directRes.ok) {
-        const d = await directRes.json();
+      const res = await fetch(`https://api.themoviedb.org/3/tv/${cleanId}?api_key=${TMDB_API_KEY}`);
+      if (res.ok) {
+        const d = await res.json();
         if (d.id) return String(d.id);
       }
     } catch {}
   }
 
-  const fixedSlug = fixAnimeSlugTypos(cleanId);
-  const q1 = fixedSlug.replace(/-(sub|dub)-indo.*/gi, '').replace(/[-_]/g, ' ').trim();
+  // 2. Check exact slug key in POPULAR_SLUG_MAP
+  const lowerSlug = cleanId.toLowerCase();
+  if (POPULAR_SLUG_MAP[lowerSlug]) {
+    return POPULAR_SLUG_MAP[lowerSlug];
+  }
+
+  // 3. Regex match for popular anime titles
+  if (/b[le|lu|u]+ck/i.test(cleanId) || /blue.*lock/i.test(cleanId)) return '131041';
+  if (/jujutsu.*kaisen/i.test(cleanId) || /\bjjk\b/i.test(cleanId)) return '95479';
+  if (/1piece|one.*piece/i.test(cleanId)) return '37854';
+  if (/naruto.*shippuden/i.test(cleanId)) return '31910';
+  if (/naruto/i.test(cleanId)) return '46260';
+  if (/demon.*slayer|kimetsu/i.test(cleanId)) return '85937';
+  if (/bleach/i.test(cleanId)) return '30984';
+  if (/solo.*leveling/i.test(cleanId)) return '127532';
+  if (/chainsaw.*man/i.test(cleanId)) return '114410';
+  if (/frieren/i.test(cleanId)) return '209867';
+  if (/my.*hero.*academia|boku.*no.*hero/i.test(cleanId)) return '65930';
+  if (/attack.*on.*titan|shingeki/i.test(cleanId)) return '1429';
+
+  // 4. Fallback search via TMDB Search API without language parameter
+  const query = cleanId.replace(/[-_]/g, ' ').trim();
   try {
-    const searchRes = await fetch(`https://api.themoviedb.org/3/search/tv?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(q1)}&language=id-ID`);
+    const searchRes = await fetch(`https://api.themoviedb.org/3/search/tv?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}&language=en-US`);
     const searchJson = await searchRes.json();
-    if (searchJson.results?.[0]?.id) {
+    if (searchJson.results && searchJson.results.length > 0) {
       return String(searchJson.results[0].id);
     }
   } catch {}
 
-  const q2 = q1
-    .replace(/\b(\d+nd|\d+rd|\d+th|\d+st)\b/gi, '')
-    .replace(/\bseason\s*\d*\b/gi, '')
-    .replace(/\bs\d+\b/gi, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-  if (q2 && q2 !== q1) {
-    try {
-      const searchRes2 = await fetch(`https://api.themoviedb.org/3/search/tv?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(q2)}&language=id-ID`);
-      const searchJson2 = await searchRes2.json();
-      if (searchJson2.results?.[0]?.id) {
-        return String(searchJson2.results[0].id);
-      }
-    } catch {}
-  }
-
-  return null;
+  return cleanId;
 }
 
-export async function fetchTMDBAnimeFallback(page: number = 1) {
+// Calculate exact Season and Episode numbers from an absolute episode number
+export async function getSeasonAndEpisode(tmdbId: string, absEpisodeNum: number): Promise<{ season: number; episode: number }> {
   try {
-    const url = `https://api.themoviedb.org/3/discover/tv?api_key=${TMDB_API_KEY}&with_genres=16&with_origin_country=JP&sort_by=popularity.desc&language=id-ID&page=${page}`;
+    const res = await fetch(`https://api.themoviedb.org/3/tv/${tmdbId}?api_key=${TMDB_API_KEY}&language=en-US`);
+    if (!res.ok) return { season: 1, episode: absEpisodeNum };
+    const d = await res.json();
+    const seasons = (d.seasons || []).filter((s: any) => s.season_number > 0);
+
+    if (seasons.length === 0) return { season: 1, episode: absEpisodeNum };
+
+    let remaining = absEpisodeNum;
+    for (const s of seasons) {
+      if (remaining <= s.episode_count) {
+        return { season: s.season_number, episode: remaining };
+      }
+      remaining -= s.episode_count;
+    }
+    const lastSeason = seasons[seasons.length - 1];
+    return { season: lastSeason.season_number, episode: remaining + lastSeason.episode_count };
+  } catch (err) {
+    return { season: 1, episode: absEpisodeNum };
+  }
+}
+
+export async function fetchWajikHome() {
+  try {
+    const url = `https://api.themoviedb.org/3/discover/tv?api_key=${TMDB_API_KEY}&with_genres=16&with_origin_country=JP&sort_by=vote_count.desc&language=en-US`;
     const res = await fetch(url, { next: { revalidate: 3600 } });
     const json = await res.json();
     const list = (json.results || []).map((item: any) => ({
@@ -79,51 +135,123 @@ export async function fetchTMDBAnimeFallback(page: number = 1) {
       title: item.name || item.original_name || 'Anime',
       poster: item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=400&q=80',
       episodes: 'Sub Indo HD',
-      releaseDay: 'Update',
-      score: item.vote_average ? item.vote_average.toFixed(1) : '8.0',
+      releaseDay: 'Update Hari Ini',
+      score: item.vote_average ? item.vote_average.toFixed(1) : '8.5',
       status: 'Ongoing',
     }));
 
     return {
       success: true,
       data: {
-        ongoing: { animeList: list.slice(0, 10) },
-        completed: { animeList: list.slice(10, 20) },
-        animeList: list,
+        ongoing: list.slice(0, 10),
+        completed: list.slice(10, 20),
       }
     };
   } catch (e) {
-    console.error('TMDB Anime fallback error:', e);
+    console.error('Home anime fetch error:', e);
     return {
       success: false,
-      data: {
-        ongoing: { animeList: [] },
-        completed: { animeList: [] },
-        animeList: [],
-      }
+      data: { ongoing: [], completed: [] }
     };
   }
 }
 
-export async function fetchTMDBAnimeSlugDetail(animeId: string) {
+export async function fetchWajikOngoing(page: number = 1) {
+  try {
+    const url = `https://api.themoviedb.org/3/discover/tv?api_key=${TMDB_API_KEY}&with_genres=16&with_origin_country=JP&sort_by=popularity.desc&language=en-US&page=${page}`;
+    const res = await fetch(url, { next: { revalidate: 3600 } });
+    const json = await res.json();
+    const list = (json.results || []).map((item: any) => ({
+      id: String(item.id),
+      animeId: String(item.id),
+      title: item.name || item.original_name,
+      poster: item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=400&q=80',
+      episodes: 'Sub Indo HD',
+      status: 'Ongoing',
+    }));
+
+    return {
+      success: true,
+      data: { animeList: list },
+      pagination: { currentPage: page, hasNextPage: page < (json.total_pages || 10), totalPages: json.total_pages || 10 }
+    };
+  } catch {
+    return { success: false, data: { animeList: [] } };
+  }
+}
+
+export async function fetchWajikCompleted(page: number = 1) {
+  try {
+    const targetPage = page + 1;
+    const url = `https://api.themoviedb.org/3/discover/tv?api_key=${TMDB_API_KEY}&with_genres=16&with_origin_country=JP&sort_by=vote_count.desc&language=en-US&page=${targetPage}`;
+    const res = await fetch(url, { next: { revalidate: 3600 } });
+    const json = await res.json();
+    const list = (json.results || []).map((item: any) => ({
+      id: String(item.id),
+      animeId: String(item.id),
+      title: item.name || item.original_name,
+      poster: item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=400&q=80',
+      episodes: 'Sub Indo HD',
+      status: 'Completed',
+    }));
+
+    return {
+      success: true,
+      data: { animeList: list },
+      pagination: { currentPage: page, hasNextPage: page < 10, totalPages: 10 }
+    };
+  } catch {
+    return { success: false, data: { animeList: [] } };
+  }
+}
+
+export async function fetchWajikSearch(query: string) {
+  try {
+    const url = `https://api.themoviedb.org/3/search/tv?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}&language=en-US`;
+    const res = await fetch(url);
+    const json = await res.json();
+    const list = (json.results || []).map((item: any) => ({
+      id: String(item.id),
+      animeId: String(item.id),
+      title: item.name || item.original_name,
+      poster: item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=400&q=80',
+      status: 'Anime Sub Indo',
+    }));
+    return { success: true, data: { animeList: list } };
+  } catch {
+    return { success: false, data: { animeList: [] } };
+  }
+}
+
+export async function fetchWajikAnimeDetail(animeId: string) {
   try {
     const tmdbId = await resolveTmdbAnimeId(animeId);
-    if (!tmdbId) throw new Error(`No TMDB match for ${animeId}`);
-
-    const url = `https://api.themoviedb.org/3/tv/${tmdbId}?api_key=${TMDB_API_KEY}&language=id-ID`;
+    const url = `https://api.themoviedb.org/3/tv/${tmdbId}?api_key=${TMDB_API_KEY}&language=en-US`;
     const res = await fetch(url);
-    if (!res.ok) throw new Error(`TMDB TV status ${res.status}`);
+    if (!res.ok) throw new Error(`TMDB status ${res.status}`);
     const d = await res.json();
 
     const title = d.name || d.original_name || animeId.replace(/-(sub|dub)-indo.*/gi, '').replace(/-/g, ' ').toUpperCase();
-    const epCount = d.number_of_episodes || 24;
+    
+    // Calculate total episode count from all regular seasons
+    const regularSeasons = (d.seasons || []).filter((s: any) => s.season_number > 0);
+    let totalEpCount = d.number_of_episodes || 24;
+    if (regularSeasons.length > 0) {
+      const sum = regularSeasons.reduce((acc: number, s: any) => acc + (s.episode_count || 0), 0);
+      if (sum > 0) totalEpCount = sum;
+    }
+
+    const episodeList = Array.from({ length: totalEpCount }).map((_, i) => ({
+      episodeId: `${tmdbId}-ep-${i + 1}`,
+      title: `Episode ${i + 1}`,
+    }));
 
     return {
       success: true,
       data: {
         details: {
-          id: String(animeId),
-          animeId: String(animeId),
+          id: String(tmdbId),
+          animeId: String(tmdbId),
           title,
           japanese: d.original_name || title,
           poster: d.poster_path ? `https://image.tmdb.org/t/p/w500${d.poster_path}` : 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=400&q=80',
@@ -131,16 +259,14 @@ export async function fetchTMDBAnimeSlugDetail(animeId: string) {
           status: d.status || 'Ongoing',
           score: d.vote_average ? d.vote_average.toFixed(1) : '8.5',
           type: 'Anime',
-          episodes: `${epCount} Episode`,
+          episodes: `${totalEpCount} Episode`,
           genreList: (d.genres || [{ name: 'Action' }, { name: 'Animation' }]).map((g: any) => ({ title: g.name, genreId: String(g.id || g.name) })),
-          episodeList: Array.from({ length: Math.min(epCount, 24) }).map((_, i) => ({
-            episodeId: `${animeId}-episode-${i + 1}`,
-            title: `Episode ${i + 1}`,
-          })),
+          episodeList,
         }
       }
     };
   } catch (e) {
+    console.error(`Anime detail error for ${animeId}:`, e);
     const cleanTitle = animeId.replace(/-(sub|dub)-indo.*/gi, '').replace(/-/g, ' ').toUpperCase();
     return {
       success: true,
@@ -155,10 +281,10 @@ export async function fetchTMDBAnimeSlugDetail(animeId: string) {
           status: 'Ongoing',
           score: '8.0',
           type: 'Anime',
-          episodes: '12 Episode',
+          episodes: '24 Episode',
           genreList: [{ title: 'Action', genreId: 'action' }, { title: 'Animation', genreId: 'animation' }],
-          episodeList: Array.from({ length: 12 }).map((_, i) => ({
-            episodeId: `${animeId}-episode-${i + 1}`,
+          episodeList: Array.from({ length: 24 }).map((_, i) => ({
+            episodeId: `${animeId}-ep-${i + 1}`,
             title: `Episode ${i + 1}`,
           })),
         }
@@ -167,334 +293,31 @@ export async function fetchTMDBAnimeSlugDetail(animeId: string) {
   }
 }
 
-// --- Native Otakudesu Direct Scraper ---
-
-export async function fetchWajikHome() {
-  try {
-    const res = await fetch(`${OTAKUDESU_BASE}/`, { headers: FETCH_HEADERS, next: { revalidate: 300 } });
-    if (!res.ok) throw new Error(`Otakudesu home status ${res.status}`);
-    const html = await res.text();
-
-    const ongoingList: any[] = [];
-    const completedList: any[] = [];
-
-    const liMatches = html.match(/<li[\s\S]*?<\/li>/gi) || [];
-    for (const li of liMatches) {
-      const linkMatch = li.match(/href="https:\/\/otakudesu\.[a-z]+\/anime\/([^\/"]+)\/?"[^>]*>([^<]+)/i);
-      const imgMatch = li.match(/src="([^"]+\.(jpg|png|jpeg|webp))"/i);
-      const epMatch = li.match(/<div class="epz"[^>]*>([^<]+)/i);
-      const dayMatch = li.match(/<div class="epztii"[^>]*>([^<]+)/i);
-
-      if (linkMatch) {
-        const slug = linkMatch[1];
-        const rawTitle = linkMatch[2].replace(/&#8211;/g, '-').replace(/&amp;/g, '&').replace(/Subtitle Indonesia.*/i, '').trim();
-        const poster = imgMatch ? imgMatch[1] : '';
-        const epText = epMatch ? epMatch[1].trim() : 'Sub Indo';
-        const dayText = dayMatch ? dayMatch[1].trim() : 'Update';
-
-        if (li.includes('newzti') || epMatch) {
-          if (!ongoingList.some(a => a.animeId === slug)) {
-            ongoingList.push({
-              id: slug,
-              animeId: slug,
-              title: rawTitle,
-              poster,
-              episodes: epText,
-              releaseDay: dayText,
-              status: 'Ongoing',
-            });
-          }
-        } else {
-          if (!completedList.some(a => a.animeId === slug)) {
-            completedList.push({
-              id: slug,
-              animeId: slug,
-              title: rawTitle,
-              poster,
-              episodes: epText,
-              status: 'Completed',
-            });
-          }
-        }
-      }
-    }
-
-    if (ongoingList.length > 0) {
-      return {
-        success: true,
-        data: {
-          ongoing: ongoingList.slice(0, 15),
-          completed: completedList.slice(0, 15),
-        }
-      };
-    }
-
-    throw new Error('Empty ongoing list');
-  } catch {
-    return await fetchTMDBAnimeFallback(1);
-  }
-}
-
-export async function fetchWajikOngoing(page: number = 1) {
-  try {
-    const url = page > 1 ? `${OTAKUDESU_BASE}/ongoing-anime/page/${page}/` : `${OTAKUDESU_BASE}/ongoing-anime/`;
-    const res = await fetch(url, { headers: FETCH_HEADERS, next: { revalidate: 300 } });
-    if (!res.ok) throw new Error(`Status ${res.status}`);
-    const html = await res.text();
-
-    const animeList: any[] = [];
-    const liMatches = html.match(/<li[\s\S]*?<\/li>/gi) || [];
-    for (const li of liMatches) {
-      const linkMatch = li.match(/href="https:\/\/otakudesu\.[a-z]+\/anime\/([^\/"]+)\/?"[^>]*>([^<]+)/i);
-      const imgMatch = li.match(/src="([^"]+\.(jpg|png|jpeg|webp))"/i);
-      const epMatch = li.match(/<div class="epz"[^>]*>([^<]+)/i);
-
-      if (linkMatch) {
-        const slug = linkMatch[1];
-        const rawTitle = linkMatch[2].replace(/&#8211;/g, '-').replace(/&amp;/g, '&').replace(/Subtitle Indonesia.*/i, '').trim();
-        const poster = imgMatch ? imgMatch[1] : '';
-        const epText = epMatch ? epMatch[1].trim() : 'Sub Indo';
-
-        if (!animeList.some(a => a.animeId === slug)) {
-          animeList.push({
-            id: slug,
-            animeId: slug,
-            title: rawTitle,
-            poster,
-            episodes: epText,
-            status: 'Ongoing',
-          });
-        }
-      }
-    }
-
-    if (animeList.length > 0) {
-      return {
-        success: true,
-        data: { animeList },
-        pagination: { currentPage: page, hasNextPage: page < 10, totalPages: 10 }
-      };
-    }
-    throw new Error('Empty ongoing list');
-  } catch {
-    return await fetchTMDBAnimeFallback(page);
-  }
-}
-
-export async function fetchWajikCompleted(page: number = 1) {
-  try {
-    const url = page > 1 ? `${OTAKUDESU_BASE}/complete-anime/page/${page}/` : `${OTAKUDESU_BASE}/complete-anime/`;
-    const res = await fetch(url, { headers: FETCH_HEADERS, next: { revalidate: 300 } });
-    if (!res.ok) throw new Error(`Status ${res.status}`);
-    const html = await res.text();
-
-    const animeList: any[] = [];
-    const liMatches = html.match(/<li[\s\S]*?<\/li>/gi) || [];
-    for (const li of liMatches) {
-      const linkMatch = li.match(/href="https:\/\/otakudesu\.[a-z]+\/anime\/([^\/"]+)\/?"[^>]*>([^<]+)/i);
-      const imgMatch = li.match(/src="([^"]+\.(jpg|png|jpeg|webp))"/i);
-      const epMatch = li.match(/<div class="epz"[^>]*>([^<]+)/i);
-
-      if (linkMatch) {
-        const slug = linkMatch[1];
-        const rawTitle = linkMatch[2].replace(/&#8211;/g, '-').replace(/&amp;/g, '&').replace(/Subtitle Indonesia.*/i, '').trim();
-        const poster = imgMatch ? imgMatch[1] : '';
-        const epText = epMatch ? epMatch[1].trim() : 'Completed';
-
-        if (!animeList.some(a => a.animeId === slug)) {
-          animeList.push({
-            id: slug,
-            animeId: slug,
-            title: rawTitle,
-            poster,
-            episodes: epText,
-            status: 'Completed',
-          });
-        }
-      }
-    }
-
-    if (animeList.length > 0) {
-      return {
-        success: true,
-        data: { animeList },
-        pagination: { currentPage: page, hasNextPage: page < 10, totalPages: 10 }
-      };
-    }
-    throw new Error('Empty completed list');
-  } catch {
-    return await fetchTMDBAnimeFallback(page);
-  }
-}
-
-export async function fetchWajikSearch(query: string) {
-  try {
-    const url = `${OTAKUDESU_BASE}/?s=${encodeURIComponent(query)}&post_type=anime`;
-    const res = await fetch(url, { headers: FETCH_HEADERS });
-    if (!res.ok) throw new Error(`Search status ${res.status}`);
-    const html = await res.text();
-
-    const animeList: any[] = [];
-    const liMatches = html.match(/<li[\s\S]*?<\/li>/gi) || [];
-    for (const li of liMatches) {
-      const linkMatch = li.match(/href="https:\/\/otakudesu\.[a-z]+\/anime\/([^\/"]+)\/?"[^>]*>([^<]+)/i);
-      const imgMatch = li.match(/src="([^"]+\.(jpg|png|jpeg|webp))"/i);
-      if (linkMatch) {
-        const slug = linkMatch[1];
-        const rawTitle = linkMatch[2].replace(/&#8211;/g, '-').replace(/&amp;/g, '&').replace(/Subtitle Indonesia.*/i, '').trim();
-        const poster = imgMatch ? imgMatch[1] : '';
-        if (!animeList.some(a => a.animeId === slug)) {
-          animeList.push({
-            id: slug,
-            animeId: slug,
-            title: rawTitle,
-            poster,
-            status: 'Anime Sub Indo',
-          });
-        }
-      }
-    }
-
-    if (animeList.length > 0) {
-      return { success: true, data: { animeList } };
-    }
-    throw new Error('Empty search');
-  } catch {
-    try {
-      const url = `https://api.themoviedb.org/3/search/tv?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}&language=id-ID`;
-      const res = await fetch(url);
-      const json = await res.json();
-      const list = (json.results || []).map((item: any) => ({
-        id: String(item.id),
-        animeId: String(item.id),
-        title: item.name || item.original_name,
-        poster: item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=400&q=80',
-        status: 'Anime Sub Indo',
-      }));
-      return { success: true, data: { animeList: list } };
-    } catch {
-      return { success: false, data: { animeList: [] } };
-    }
-  }
-}
-
-export async function fetchWajikAnimeDetail(animeId: string) {
-  try {
-    const cleanId = animeId.replace(/^\//, '').replace(/\/$/, '');
-    const url = `${OTAKUDESU_BASE}/anime/${cleanId}/`;
-    const res = await fetch(url, { headers: FETCH_HEADERS });
-    if (!res.ok) throw new Error(`Anime detail status ${res.status}`);
-    const html = await res.text();
-
-    const titleMatch = html.match(/<h1[^>]*>([^<]+)<\/h1>/i) || html.match(/<div class="j2xtda">[^<]*<h1>([^<]+)/i);
-    const title = titleMatch ? titleMatch[1].replace(/&#8211;/g, '-').replace(/&amp;/g, '&').replace(/Subtitle Indonesia.*/i, '').trim() : animeId;
-
-    const posterMatch = html.match(/<img[^>]+src="(https:\/\/[^"]+\.(jpg|png|jpeg|webp))"/i);
-    const poster = posterMatch ? posterMatch[1] : '';
-
-    const synopsisMatch = html.match(/<div class="sinopc">([\s\S]*?)<\/div>/i);
-    const synopsisText = synopsisMatch ? synopsisMatch[1].replace(/<[^>]+>/g, '').trim() : 'Deskripsi tayangan anime.';
-
-    const epMatches: any[] = [];
-    const epRegex = /href="[^"]*\/episode\/([^\/"]+)\/?"[^>]*>([^<]+)/gi;
-    let m: RegExpExecArray | null;
-    while ((m = epRegex.exec(html)) !== null) {
-      if (!epMatches.some(e => e.episodeId === m![1])) {
-        epMatches.push({
-          episodeId: m[1],
-          title: m[2].replace(/&#8211;/g, '-').replace(/&amp;/g, '&').trim(),
-        });
-      }
-    }
-
-    if (epMatches.length > 0) {
-      return {
-        success: true,
-        data: {
-          details: {
-            id: cleanId,
-            animeId: cleanId,
-            title,
-            japanese: title,
-            poster,
-            synopsis: { paragraphList: [synopsisText] },
-            status: 'Ongoing',
-            score: '8.5',
-            type: 'Anime',
-            episodes: `${epMatches.length} Episode`,
-            genreList: [{ title: 'Action', genreId: 'action' }, { title: 'Animation', genreId: 'animation' }],
-            episodeList: epMatches,
-          }
-        }
-      };
-    }
-    throw new Error('No episodes scraped');
-  } catch (e) {
-    console.error(`Otakudesu detail scrape error for ${animeId}, fallback to TMDB:`, e);
-    return await fetchTMDBAnimeSlugDetail(animeId);
-  }
+export async function fetchTMDBAnimeSlugDetail(animeId: string) {
+  return await fetchWajikAnimeDetail(animeId);
 }
 
 export async function fetchWajikEpisodeDetail(episodeId: string) {
   try {
-    const cleanId = episodeId.replace(/^\//, '').replace(/\/$/, '');
-    const url = `${OTAKUDESU_BASE}/episode/${cleanId}/`;
-    const res = await fetch(url, { headers: FETCH_HEADERS });
-    if (!res.ok) throw new Error(`Episode status ${res.status}`);
-    const html = await res.text();
+    let animeSlug = '131041';
+    let epNum = 1;
 
-    const titleMatch = html.match(/<h1[^>]*>([^<]+)<\/h1>/i);
-    const title = titleMatch ? titleMatch[1].replace(/&#8211;/g, '-').replace(/&amp;/g, '&').trim() : episodeId;
-
-    const iframeMatch = html.match(/<iframe[^>]+src="([^"]+)"/i);
-    const streamUrl = iframeMatch ? iframeMatch[1] : '';
-
-    // Extract prev & next episode links
-    const prevMatch = html.match(/href="[^"]*\/episode\/([^\/"]+)\/?"[^>]*rel="prev"/i) ||
-                      html.match(/<a[^>]+href="[^"]*\/episode\/([^\/"]+)\/?"[^>]*>[\s\S]*?Prev/i);
-    const nextMatch = html.match(/href="[^"]*\/episode\/([^\/"]+)\/?"[^>]*rel="next"/i) ||
-                      html.match(/<a[^>]+href="[^"]*\/episode\/([^\/"]+)\/?"[^>]*>[\s\S]*?Next/i);
-
-    const prevEpId = prevMatch ? prevMatch[1] : null;
-    const nextEpId = nextMatch ? nextMatch[1] : null;
-
-    if (streamUrl) {
-      return {
-        success: true,
-        data: {
-          details: {
-            id: cleanId,
-            title,
-            animeId: cleanId.replace(/-episode-.*/, ''),
-            defaultStreamingUrl: streamUrl,
-            hasPrevEpisode: Boolean(prevEpId),
-            prevEpisode: prevEpId ? { episodeId: prevEpId } : null,
-            hasNextEpisode: Boolean(nextEpId),
-            nextEpisode: nextEpId ? { episodeId: nextEpId } : null,
-            server: {
-              qualityList: [
-                {
-                  title: 'HD 720p Sub Indo (Otakudesu Direct)',
-                  serverList: [
-                    { title: 'Server Otakudesu (Sub Indo Hardsub)', serverId: `otakudesu-${cleanId}` },
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      };
+    if (episodeId.includes('-ep-')) {
+      const parts = episodeId.split('-ep-');
+      animeSlug = parts[0] || '131041';
+      epNum = parseInt(parts[1] || '1', 10) || 1;
+    } else if (episodeId.includes('-episode-')) {
+      const parts = episodeId.split('-episode-');
+      animeSlug = parts[0] || '131041';
+      epNum = parseInt(parts[1] || '1', 10) || 1;
     }
-    throw new Error('No stream iframe found');
-  } catch (e) {
-    console.error(`Episode scrape error for ${episodeId}, fallback to TMDB:`, e);
-    const parts = episodeId.split('-episode-');
-    const animeSlug = parts[0] || 'blue-lock';
-    let epNum = parts[1] ? parts[1].replace(/\D/g, '') : '1';
-    if (!epNum) epNum = '1';
 
     const tmdbId = await resolveTmdbAnimeId(animeSlug);
-    const streamUrl = `https://autoembed.co/tv/tmdb/${tmdbId}-1-${epNum}`;
+
+    // Calculate exact mapped Season and Episode numbers
+    const { season, episode } = await getSeasonAndEpisode(tmdbId, epNum);
+
+    const streamUrl = `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1&s=${season}&e=${episode}`;
 
     return {
       success: true,
@@ -502,21 +325,22 @@ export async function fetchWajikEpisodeDetail(episodeId: string) {
         details: {
           id: episodeId,
           title: `Episode ${epNum}`,
-          animeId: animeSlug,
+          animeId: tmdbId,
           defaultStreamingUrl: streamUrl,
-          hasPrevEpisode: Number(epNum) > 1,
-          prevEpisode: Number(epNum) > 1 ? { episodeId: `${animeSlug}-episode-${Number(epNum) - 1}` } : null,
+          hasPrevEpisode: epNum > 1,
+          prevEpisode: epNum > 1 ? { episodeId: `${tmdbId}-ep-${epNum - 1}` } : null,
           hasNextEpisode: true,
-          nextEpisode: { episodeId: `${animeSlug}-episode-${Number(epNum) + 1}` },
+          nextEpisode: { episodeId: `${tmdbId}-ep-${epNum + 1}` },
           server: {
             qualityList: [
               {
                 title: 'HD 720p Sub Indo',
                 serverList: [
-                  { title: 'Server AutoEmbed HD', serverId: `autoembed-${tmdbId}-1-${epNum}` },
-                  { title: 'Server MultiEmbed (Sub Indo)', serverId: `multiembed-${tmdbId}-1-${epNum}` },
-                  { title: 'Server VidLink HD', serverId: `vidlink-${tmdbId}-1-${epNum}` },
-                  { title: 'Server 2Embed HD', serverId: `2embed-${tmdbId}-1-${epNum}` },
+                  { title: 'Server MultiEmbed (Sub Indo CC)', serverId: `multiembed-${tmdbId}-${season}-${episode}` },
+                  { title: 'Server VidSrc.to HD', serverId: `vidsrc-${tmdbId}-${season}-${episode}` },
+                  { title: 'Server 2Embed HD', serverId: `2embed-${tmdbId}-${season}-${episode}` },
+                  { title: 'Server VidSrc.me HD', serverId: `vidsrcme-${tmdbId}-${season}-${episode}` },
+                  { title: 'Server AutoEmbed HD', serverId: `autoembed-${tmdbId}-${season}-${episode}` },
                 ]
               }
             ]
@@ -524,38 +348,50 @@ export async function fetchWajikEpisodeDetail(episodeId: string) {
         }
       }
     };
+  } catch (e) {
+    console.error(`Episode detail error for ${episodeId}:`, e);
+    return {
+      success: false,
+      data: null
+    };
   }
 }
 
 export async function fetchWajikServerStream(serverId: string) {
   try {
-    if (serverId.startsWith('otakudesu-')) {
-      const epId = serverId.replace('otakudesu-', '');
-      const detail = await fetchWajikEpisodeDetail(epId);
-      return { success: true, data: { details: { url: detail.data?.details?.defaultStreamingUrl } } };
-    }
     if (serverId.startsWith('multiembed-')) {
       const parts = serverId.replace('multiembed-', '').split('-');
       const tId = parts[0] || '131041';
+      const sNum = parts[1] || '1';
       const eNum = parts[2] || '1';
-      return { success: true, data: { details: { url: `https://multiembed.mov/?video_id=${tId}&tmdb=1&s=1&e=${eNum}` } } };
+      return { success: true, data: { details: { url: `https://multiembed.mov/?video_id=${tId}&tmdb=1&s=${sNum}&e=${eNum}` } } };
+    }
+    if (serverId.startsWith('vidsrcme-')) {
+      const parts = serverId.replace('vidsrcme-', '').split('-');
+      const tId = parts[0] || '131041';
+      const sNum = parts[1] || '1';
+      const eNum = parts[2] || '1';
+      return { success: true, data: { details: { url: `https://vidsrc.me/embed/tv?tmdb=${tId}&season=${sNum}&episode=${eNum}` } } };
     }
     if (serverId.startsWith('2embed-')) {
       const parts = serverId.replace('2embed-', '').split('-');
       const tId = parts[0] || '131041';
+      const sNum = parts[1] || '1';
       const eNum = parts[2] || '1';
-      return { success: true, data: { details: { url: `https://www.2embed.cc/embedtv/${tId}&s=1&e=${eNum}` } } };
+      return { success: true, data: { details: { url: `https://www.2embed.cc/embedtv/${tId}&s=${sNum}&e=${eNum}` } } };
     }
-    if (serverId.startsWith('vidlink-')) {
-      const parts = serverId.replace('vidlink-', '').split('-');
+    if (serverId.startsWith('vidsrc-')) {
+      const parts = serverId.replace('vidsrc-', '').split('-');
       const tId = parts[0] || '131041';
+      const sNum = parts[1] || '1';
       const eNum = parts[2] || '1';
-      return { success: true, data: { details: { url: `https://vidlink.pro/tv/${tId}/1/${eNum}` } } };
+      return { success: true, data: { details: { url: `https://vidsrc.to/embed/tv/${tId}/${sNum}/${eNum}` } } };
     }
     const parts = serverId.replace('autoembed-', '').split('-');
     const tId = parts[0] || '131041';
+    const sNum = parts[1] || '1';
     const eNum = parts[2] || '1';
-    return { success: true, data: { details: { url: `https://autoembed.co/tv/tmdb/${tId}-1-${eNum}` } } };
+    return { success: true, data: { details: { url: `https://autoembed.co/tv/tmdb/${tId}-${sNum}-${eNum}` } } };
   } catch {
     return { success: false, data: { details: { url: '' } } };
   }
@@ -570,5 +406,5 @@ export async function fetchWajikGenres() {
 }
 
 export async function fetchWajikGenreAnime(genreId: string, page: number = 1) {
-  return await fetchTMDBAnimeFallback(page);
+  return await fetchWajikOngoing(page);
 }
