@@ -271,18 +271,41 @@ export default function VideoPlayer({
       </div>
 
       {/* Subtitle & Keyboard Hint Bar */}
-      <div className="flex flex-wrap items-center justify-between text-xs text-slate-400 px-2 gap-2">
-        <div className="flex items-center gap-2">
-          <span className="px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 font-bold border border-emerald-800/40">
-            Subtitle Indonesia Aktif
-          </span>
-          <span>• Streamed directly via Otakudesu Server</span>
+      <div className="space-y-3">
+        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-xs text-slate-300 shadow-lg">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-emerald-950/80 border border-emerald-500/30 text-emerald-400 shrink-0">
+              <Subtitles className="w-5 h-5" />
+            </div>
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-2">
+                <span className="font-extrabold text-white text-sm">Cara Mengaktifkan Subtitle Bahasa Indonesia 🇮🇩</span>
+              </div>
+              <p className="text-slate-400 text-xs">
+                Pada player video (<strong>AutoEmbed / VidLink / VidSrc</strong>), klik ikon <strong>CC</strong> atau ikon <strong>Settings (⚙️)</strong> di pojok kanan bawah player video ➡️ lalu pilih <strong>Indonesian / Bahasa Indonesia</strong>.
+              </p>
+            </div>
+          </div>
+          <div className="hidden lg:flex items-center gap-2 shrink-0">
+            <span className="px-2.5 py-1 rounded-lg bg-emerald-950 text-emerald-300 font-bold border border-emerald-800/40 text-[11px]">
+              Multi-sub CC Support
+            </span>
+          </div>
         </div>
 
-        <div className="hidden sm:flex items-center gap-3 text-slate-500">
-          <span><kbd className="px-1.5 py-0.5 bg-slate-800 rounded text-[10px] text-slate-300">Space</kbd> Play/Pause</span>
-          <span><kbd className="px-1.5 py-0.5 bg-slate-800 rounded text-[10px] text-slate-300">F</kbd> Fullscreen</span>
-          <span><kbd className="px-1.5 py-0.5 bg-slate-800 rounded text-[10px] text-slate-300">M</kbd> Mute</span>
+        <div className="flex flex-wrap items-center justify-between text-xs text-slate-400 px-2 gap-2">
+          <div className="flex items-center gap-2">
+            <span className="px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 font-bold border border-emerald-800/40">
+              🇮🇩 Subtitle Available
+            </span>
+            <span>• AutoEmbed / VidLink HD Engine</span>
+          </div>
+
+          <div className="hidden sm:flex items-center gap-3 text-slate-500">
+            <span><kbd className="px-1.5 py-0.5 bg-slate-800 rounded text-[10px] text-slate-300">Space</kbd> Play/Pause</span>
+            <span><kbd className="px-1.5 py-0.5 bg-slate-800 rounded text-[10px] text-slate-300">F</kbd> Fullscreen</span>
+            <span><kbd className="px-1.5 py-0.5 bg-slate-800 rounded text-[10px] text-slate-300">M</kbd> Mute</span>
+          </div>
         </div>
       </div>
     </div>
