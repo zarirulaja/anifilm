@@ -125,9 +125,49 @@ export async function getSeasonAndEpisode(tmdbId: string, absEpisodeNum: number)
   }
 }
 
+const WAJIK_API_URL = process.env.WAJIK_API_URL || 'https://wajik-anime-api.vercel.app';
+
+async function wajikFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  const url = `${WAJIK_API_URL}${endpoint}`;
+  try {
+    const res = await fetch(url, {
+      ...options,
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        ...options.headers,
+      },
+      next: { revalidate: 300 },
+    });
+
+    if (!res.ok) {
+      throw new Error(`Wajik API error ${res.status} for ${endpoint}`);
+    }
+
+    const json = await res.json();
+    if (json.statusCode && json.statusCode !== 200) {
+      throw new Error(`Wajik API status ${json.statusCode}`);
+    }
+
+    return json;
+  } catch (error) {
+    console.warn(`[Wajik API Fallback] ${endpoint}:`, error instanceof Error ? error.message : error);
+    throw error;
+  }
+}
+
 const OTAKUDESU_BASE = 'https://otakudesu.cloud';
 
 export async function fetchWajikHome() {
+  try {
+    return await wajikFetch<any>('/otakudesu/home');
+  } catch {
+    return await fetchOtakudesuScrapedHome();
+  }
+}
+
+async function fetchOtakudesuScrapedHome() {
   try {
     const res = await fetch(`${OTAKUDESU_BASE}/`, { headers: { 'User-Agent': USER_AGENT }, next: { revalidate: 1800 } });
     if (!res.ok) throw new Error(`Home HTTP ${res.status}`);
@@ -203,6 +243,14 @@ async function fetchTMDBHome() {
 
 export async function fetchWajikOngoing(page: number = 1) {
   try {
+    return await wajikFetch<any>(`/otakudesu/ongoing?page=${page}`);
+  } catch {
+    return await fetchOtakudesuScrapedOngoing(page);
+  }
+}
+
+async function fetchOtakudesuScrapedOngoing(page: number = 1) {
+  try {
     const url = page === 1 ? `${OTAKUDESU_BASE}/ongoing-anime/` : `${OTAKUDESU_BASE}/ongoing-anime/page/${page}/`;
     const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT }, next: { revalidate: 1800 } });
     if (!res.ok) throw new Error(`Ongoing HTTP ${res.status}`);
@@ -268,6 +316,14 @@ async function fetchTMDBOngoing(page: number = 1) {
 }
 
 export async function fetchWajikCompleted(page: number = 1) {
+  try {
+    return await wajikFetch<any>(`/otakudesu/completed?page=${page}`);
+  } catch {
+    return await fetchOtakudesuScrapedCompleted(page);
+  }
+}
+
+async function fetchOtakudesuScrapedCompleted(page: number = 1) {
   try {
     const url = page === 1 ? `${OTAKUDESU_BASE}/complete-anime/` : `${OTAKUDESU_BASE}/complete-anime/page/${page}/`;
     const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT }, next: { revalidate: 1800 } });
@@ -335,6 +391,14 @@ async function fetchTMDBCompleted(page: number = 1) {
 }
 
 export async function fetchWajikSearch(query: string) {
+  try {
+    return await wajikFetch<any>(`/otakudesu/search?q=${encodeURIComponent(query)}`);
+  } catch {
+    return await fetchOtakudesuScrapedSearch(query);
+  }
+}
+
+async function fetchOtakudesuScrapedSearch(query: string) {
   try {
     const url = `${OTAKUDESU_BASE}/?s=${encodeURIComponent(query)}&post_type=anime`;
     const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });
@@ -410,6 +474,14 @@ export async function getAnimeSearchTitle(idOrSlug: string): Promise<string> {
 }
 
 export async function fetchWajikAnimeDetail(animeId: string) {
+  try {
+    return await wajikFetch<any>(`/otakudesu/anime/${encodeURIComponent(animeId)}`);
+  } catch {
+    return await fetchOtakudesuScrapedDetail(animeId);
+  }
+}
+
+async function fetchOtakudesuScrapedDetail(animeId: string) {
   try {
     const cleanId = animeId.replace(/^\//, '').replace(/\/$/, '');
     let url = `${OTAKUDESU_BASE}/anime/${cleanId}/`;
@@ -655,6 +727,14 @@ export async function fetchTMDBAnimeSlugDetail(animeId: string) {
 }
 
 export async function fetchWajikEpisodeDetail(episodeId: string) {
+  try {
+    return await wajikFetch<any>(`/otakudesu/episode/${encodeURIComponent(episodeId)}`);
+  } catch {
+    return await fetchOtakudesuScrapedEpisode(episodeId);
+  }
+}
+
+async function fetchOtakudesuScrapedEpisode(episodeId: string) {
   try {
     let animeSlug = '131041';
     let epNum = 1;
