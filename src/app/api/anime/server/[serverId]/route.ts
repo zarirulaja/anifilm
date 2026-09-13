@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { fetchWajikServerStream } from '@/lib/anime/wajik';
 import { normalizeServerStream } from '@/lib/anime/adapter';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { serverId: string } }
