@@ -294,6 +294,100 @@ export async function fetchWajikAnimeDetail(animeId: string) {
   }
 }
 
+const TMDB_TITLE_MAP: Record<string, string> = {
+  '1429': 'Attack on Titan',
+  '37854': 'One Piece',
+  '95479': 'Jujutsu Kaisen',
+  '131041': 'Blue Lock',
+  '85937': 'Demon Slayer',
+  '31910': 'Naruto Shippuden',
+  '46260': 'Naruto',
+  '127532': 'Solo Leveling',
+  '114410': 'Chainsaw Man',
+  '209867': 'Frieren',
+  '65930': 'My Hero Academia',
+  '62715': 'Dragon Ball Super',
+  '12971': 'Dragon Ball Z',
+  '30984': 'Bleach',
+  '13916': 'Death Note',
+  '63926': 'One Punch Man',
+  '61374': 'Tokyo Ghoul',
+  '62104': 'Seven Deadly Sins',
+  '120089': 'Spy x Family',
+  '207468': 'Kaiju No 8',
+  '213713': 'Dandadan',
+  '46298': 'Hunter x Hunter',
+  '66263': 'Re Zero',
+  '73223': 'Black Clover',
+  '106454': 'Tokyo Revengers',
+  '31911': 'Fullmetal Alchemist',
+  '60625': 'Haikyuu',
+  '38692': 'Steins Gate',
+  '45782': 'Sword Art Online',
+  '63923': 'Overlord',
+  '72636': 'Classroom of the Elite',
+};
+
+const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+
+export async function resolveOtakudesuStream(animeTitle: string, epNum: number): Promise<string | null> {
+  try {
+    const searchUrl = `https://otakudesu.cloud/?s=${encodeURIComponent(animeTitle)}&post_type=anime`;
+    const searchRes = await fetch(searchUrl, {
+      headers: { 'User-Agent': USER_AGENT },
+      signal: AbortSignal.timeout(4000)
+    });
+    if (!searchRes.ok) return null;
+    const searchHtml = await searchRes.text();
+
+    const animeMatch = searchHtml.match(/<h2[^>]*><a href="([^"]+)"[^>]*>([^<]+)<\/a>/i);
+    if (!animeMatch) return null;
+
+    const animeUrl = animeMatch[1];
+    const detailRes = await fetch(animeUrl, {
+      headers: { 'User-Agent': USER_AGENT },
+      signal: AbortSignal.timeout(4000)
+    });
+    if (!detailRes.ok) return null;
+    const detailHtml = await detailRes.text();
+
+    const epRegex = /href="(https:\/\/[^"]*otakudesu[^"]*\/episode\/[^"]+)"[^>]*>([^<]+)/gi;
+    const episodes: Array<{ url: string; title: string }> = [];
+    let m;
+    while ((m = epRegex.exec(detailHtml)) !== null) {
+      episodes.push({ url: m[1], title: m[2].trim() });
+    }
+
+    if (episodes.length === 0) return null;
+
+    let targetEp = episodes.find(e => {
+      const matchNum = e.title.match(/episode\s*(\d+)/i) || e.url.match(/episode-(\d+)/i);
+      return matchNum && parseInt(matchNum[1], 10) === epNum;
+    });
+
+    if (!targetEp) {
+      const reversed = [...episodes].reverse();
+      targetEp = reversed[epNum - 1] || reversed[0];
+    }
+
+    const epRes = await fetch(targetEp.url, {
+      headers: { 'User-Agent': USER_AGENT },
+      signal: AbortSignal.timeout(4000)
+    });
+    if (!epRes.ok) return null;
+    const epHtml = await epRes.text();
+
+    const iframeMatch = epHtml.match(/<iframe[^>]+src="([^"]+)"/i) || epHtml.match(/src="([^"]*(?:desustream|nekoclouds|odstream|desu\.stream|moeclip|streamanime)[^"]*)"/i);
+    if (iframeMatch) {
+      return iframeMatch[1];
+    }
+
+    return null;
+  } catch (err) {
+    return null;
+  }
+}
+
 export async function fetchTMDBAnimeSlugDetail(animeId: string) {
   return await fetchWajikAnimeDetail(animeId);
 }
@@ -324,12 +418,28 @@ export async function fetchWajikEpisodeDetail(episodeId: string) {
     }
 
     const tmdbId = await resolveTmdbAnimeId(animeSlug);
-
-    // Calculate exact mapped Season and Episode numbers
     const { season, episode } = await getSeasonAndEpisode(tmdbId, epNum);
 
-    // Default to VidSrc Anime Engine (/embed/anime) which targets Subbed Japanese Audio natively
-    const defaultStreamUrl = `https://vidsrc.me/embed/anime?tmdb=${tmdbId}&season=${season}&episode=${episode}`;
+    const animeTitle = TMDB_TITLE_MAP[tmdbId] || animeSlug.replace(/[-_]/g, ' ');
+    const otakudesuStream = await resolveOtakudesuStream(animeTitle, epNum);
+
+    const defaultStreamUrl = otakudesuStream || `https://vidsrc.me/embed/anime?tmdb=${tmdbId}&season=${season}&episode=${episode}`;
+
+    const serverList = [];
+    if (otakudesuStream) {
+      const b64 = Buffer.from(otakudesuStream).toString('base64url');
+      serverList.push({ title: 'Server 1 (Otakudesu Sub Indo - Audio Jepang 🇯🇵)', serverId: `otakudesu-${b64}` });
+      serverList.push({ title: 'Server 2 (VidSrc Anime - Audio Jepang 🇯🇵)', serverId: `vidsrcanime-${tmdbId}-${season}-${episode}` });
+      serverList.push({ title: 'Server 3 (VidSrc.pm Anime - Audio Jepang 🇯🇵)', serverId: `vidsrcpmanime-${tmdbId}-${season}-${episode}` });
+      serverList.push({ title: 'Server 4 (2Embed Skin)', serverId: `2embedskin-${tmdbId}-${season}-${episode}` });
+      serverList.push({ title: 'Server 5 (AutoEmbed HD)', serverId: `autoembed-${tmdbId}-${season}-${episode}` });
+    } else {
+      serverList.push({ title: 'Server 1 (VidSrc Anime - Audio Jepang 🇯🇵)', serverId: `vidsrcanime-${tmdbId}-${season}-${episode}` });
+      serverList.push({ title: 'Server 2 (VidSrc.pm Anime - Audio Jepang 🇯🇵)', serverId: `vidsrcpmanime-${tmdbId}-${season}-${episode}` });
+      serverList.push({ title: 'Server 3 (2Embed Skin)', serverId: `2embedskin-${tmdbId}-${season}-${episode}` });
+      serverList.push({ title: 'Server 4 (VidSrc Ultra HD)', serverId: `vidsrc-${tmdbId}-${season}-${episode}` });
+      serverList.push({ title: 'Server 5 (AutoEmbed HD)', serverId: `autoembed-${tmdbId}-${season}-${episode}` });
+    }
 
     return {
       success: true,
@@ -346,14 +456,8 @@ export async function fetchWajikEpisodeDetail(episodeId: string) {
           server: {
             qualityList: [
               {
-                title: 'HD Subbed Servers (Audio Asli Jepang 🇯🇵)',
-                serverList: [
-                  { title: 'Server 1 (VidSrc Anime - Audio Jepang 🇯🇵)', serverId: `vidsrcanime-${tmdbId}-${season}-${episode}` },
-                  { title: 'Server 2 (VidSrc.pm Anime - Audio Jepang 🇯🇵)', serverId: `vidsrcpmanime-${tmdbId}-${season}-${episode}` },
-                  { title: 'Server 3 (2Embed Skin - Audio Jepang 🇯🇵)', serverId: `2embedskin-${tmdbId}-${season}-${episode}` },
-                  { title: 'Server 4 (VidSrc Ultra HD)', serverId: `vidsrc-${tmdbId}-${season}-${episode}` },
-                  { title: 'Server 5 (AutoEmbed HD)', serverId: `autoembed-${tmdbId}-${season}-${episode}` },
-                ]
+                title: 'HD Subbed Servers (Audio Asli Jepang 🇯🇵 & Sub Indo)',
+                serverList
               }
             ]
           }
@@ -371,6 +475,15 @@ export async function fetchWajikEpisodeDetail(episodeId: string) {
 
 export async function fetchWajikServerStream(serverId: string) {
   try {
+    if (serverId.startsWith('otakudesu-')) {
+      const b64 = serverId.replace('otakudesu-', '');
+      try {
+        const decodedUrl = Buffer.from(b64, 'base64url').toString('utf-8');
+        if (decodedUrl.startsWith('http')) {
+          return { success: true, data: { details: { url: decodedUrl } } };
+        }
+      } catch {}
+    }
     if (serverId.startsWith('vidsrcanime-')) {
       const parts = serverId.replace('vidsrcanime-', '').split('-');
       const tId = parts[0] || '131041';
