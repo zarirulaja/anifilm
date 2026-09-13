@@ -34,6 +34,12 @@ export default function WatchPage({
           const epData: EpisodeDetail = json.data;
           setEpisode(epData);
           setActiveStreamUrl(epData.defaultStreamingUrl);
+          
+          // Set default selected server ID so server selector button is highlighted
+          const firstServerId = epData.qualities?.[0]?.servers?.[0]?.serverId;
+          if (firstServerId) {
+            setSelectedServerId(firstServerId);
+          }
 
           // Fetch saved progress for this episode
           const progRes = await fetch(`/api/history/progress?animeId=${animeId}&episodeId=${episodeId}`);
