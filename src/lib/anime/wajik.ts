@@ -28,8 +28,30 @@ async function wajikFetch<T>(endpoint: string, options: RequestInit = {}): Promi
   }
 }
 
+export function fixAnimeSlugTypos(slug: string): string {
+  let text = slug.toLowerCase();
+  text = text.replace(/b[le|lu|u]+ck/g, 'blue lock');
+  text = text.replace(/boku-no-hero-academia/g, 'my hero academia');
+  text = text.replace(/shingeki-no-kyojin/g, 'attack on titan');
+  text = text.replace(/kimetsu-no-yaiba/g, 'demon slayer');
+  text = text.replace(/kage-no-jitsuryokusha/g, 'the eminence in shadow');
+  text = text.replace(/tensei-shitara-slime/g, 'that time i got reincarnated as a slime');
+  text = text.replace(/jujutsu-kaisen/g, 'jujutsu kaisen');
+  return text;
+}
+
 export async function resolveTmdbAnimeId(animeSlug: string): Promise<string> {
   const cleanId = animeSlug.replace(/-episode-\d+.*/i, '').trim();
+
+  // Explicit check for Blue Lock variants (blelock, blulck, etc.)
+  if (/b[le|lu|u]+ck/i.test(cleanId) || /blue.*lock/i.test(cleanId)) {
+    return '131041';
+  }
+
+  // Explicit check for Jujutsu Kaisen
+  if (/jujutsu.*kaisen/i.test(cleanId)) {
+    return '95479';
+  }
 
   // If already a valid TMDB TV numeric ID
   if (/^\d+$/.test(cleanId)) {
@@ -42,8 +64,8 @@ export async function resolveTmdbAnimeId(animeSlug: string): Promise<string> {
     } catch {}
   }
 
-  // Clean slug query (Step 1)
-  const q1 = cleanId.replace(/-(sub|dub)-indo.*/gi, '').replace(/[-_]/g, ' ').trim();
+  const fixedSlug = fixAnimeSlugTypos(cleanId);
+  const q1 = fixedSlug.replace(/-(sub|dub)-indo.*/gi, '').replace(/[-_]/g, ' ').trim();
   try {
     const searchRes = await fetch(`https://api.themoviedb.org/3/search/tv?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(q1)}&language=id-ID`);
     const searchJson = await searchRes.json();
@@ -52,7 +74,6 @@ export async function resolveTmdbAnimeId(animeSlug: string): Promise<string> {
     }
   } catch {}
 
-  // Strip season/number descriptors (Step 2)
   const q2 = q1
     .replace(/\b(\d+nd|\d+rd|\d+th|\d+st)\b/gi, '')
     .replace(/\bseason\s*\d*\b/gi, '')
@@ -70,8 +91,7 @@ export async function resolveTmdbAnimeId(animeSlug: string): Promise<string> {
     } catch {}
   }
 
-  // Popular anime defaults if unknown
-  return '95479'; // Jujutsu Kaisen
+  return '131041';
 }
 
 export async function fetchTMDBAnimeFallback(page: number = 1) {
@@ -228,7 +248,7 @@ export async function fetchWajikEpisodeDetail(episodeId: string) {
     return await wajikFetch<any>(`/otakudesu/episode/${encodeURIComponent(episodeId)}`);
   } catch {
     const parts = episodeId.split('-episode-');
-    const animeSlug = parts[0] || 'jujutsu-kaisen';
+    const animeSlug = parts[0] || 'blue-lock';
     let epNum = parts[1] ? parts[1].replace(/\D/g, '') : '1';
     if (!epNum) epNum = '1';
 
@@ -254,8 +274,9 @@ export async function fetchWajikEpisodeDetail(episodeId: string) {
                 title: 'HD 720p Sub Indo',
                 serverList: [
                   { title: 'Server AutoEmbed HD', serverId: `autoembed-${tmdbId}-1-${epNum}` },
-                  { title: 'Server 2Embed HD', serverId: `2embed-${tmdbId}-1-${epNum}` },
+                  { title: 'Server MultiEmbed (Sub Indo)', serverId: `multiembed-${tmdbId}-1-${epNum}` },
                   { title: 'Server VidLink HD', serverId: `vidlink-${tmdbId}-1-${epNum}` },
+                  { title: 'Server 2Embed HD', serverId: `2embed-${tmdbId}-1-${epNum}` },
                   { title: 'Server VidSrc HD', serverId: `vidsrc-${tmdbId}-1-${epNum}` },
                 ]
               }
@@ -271,26 +292,32 @@ export async function fetchWajikServerStream(serverId: string) {
   try {
     return await wajikFetch<any>(`/otakudesu/server/${encodeURIComponent(serverId)}`);
   } catch {
+    if (serverId.startsWith('multiembed-')) {
+      const parts = serverId.replace('multiembed-', '').split('-');
+      const tId = parts[0] || '131041';
+      const eNum = parts[2] || '1';
+      return { success: true, data: { details: { url: `https://multiembed.mov/?video_id=${tId}&tmdb=1&s=1&e=${eNum}` } } };
+    }
     if (serverId.startsWith('2embed-')) {
       const parts = serverId.replace('2embed-', '').split('-');
-      const tId = parts[0] || '95479';
+      const tId = parts[0] || '131041';
       const eNum = parts[2] || '1';
       return { success: true, data: { details: { url: `https://www.2embed.cc/embedtv/${tId}&s=1&e=${eNum}` } } };
     }
     if (serverId.startsWith('vidlink-')) {
       const parts = serverId.replace('vidlink-', '').split('-');
-      const tId = parts[0] || '95479';
+      const tId = parts[0] || '131041';
       const eNum = parts[2] || '1';
       return { success: true, data: { details: { url: `https://vidlink.pro/tv/${tId}/1/${eNum}` } } };
     }
     if (serverId.startsWith('vidsrc-')) {
       const parts = serverId.replace('vidsrc-', '').split('-');
-      const tId = parts[0] || '95479';
+      const tId = parts[0] || '131041';
       const eNum = parts[2] || '1';
       return { success: true, data: { details: { url: `https://vidsrc.to/embed/tv/${tId}/1/${eNum}` } } };
     }
     const parts = serverId.replace('autoembed-', '').split('-');
-    const tId = parts[0] || '95479';
+    const tId = parts[0] || '131041';
     const eNum = parts[2] || '1';
     return { success: true, data: { details: { url: `https://autoembed.co/tv/tmdb/${tId}-1-${eNum}` } } };
   }
