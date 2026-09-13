@@ -104,10 +104,30 @@ export function normalizeAnimeDetail(raw: any, idParam: string): AnimeDetail {
   }));
 
   const rawEpisodeList = d?.episodeList || raw?.data?.episodeList || d?.episodes || [];
-  const episodeList = rawEpisodeList.map((ep: any) => ({
-    title: ep?.title ? (String(ep.title).toLowerCase().startsWith('episode') ? ep.title : `Episode ${ep.title}`) : 'Episode',
-    episodeId: ep?.episodeId || ep?.id || '',
-  }));
+  const episodeList = rawEpisodeList.map((ep: any, index: number) => {
+    let epId = ep?.episodeId || ep?.slug || ep?.id || '';
+    if (!epId && typeof ep?.href === 'string' && ep.href.trim()) {
+      const parts = ep.href.replace(/\/$/, '').split('/');
+      epId = parts[parts.length - 1] || '';
+    }
+    if (!epId && typeof ep?.otakudesuUrl === 'string' && ep.otakudesuUrl.trim()) {
+      const parts = ep.otakudesuUrl.replace(/\/$/, '').split('/');
+      epId = parts[parts.length - 1] || '';
+    }
+    if (!epId) {
+      const epNum = ep?.episode || index + 1;
+      epId = `${idParam}-ep-${epNum}`;
+    }
+
+    const title = ep?.title
+      ? (String(ep.title).toLowerCase().startsWith('episode') ? ep.title : `Episode ${ep.title}`)
+      : `Episode ${index + 1}`;
+
+    return {
+      title,
+      episodeId: String(epId),
+    };
+  });
 
   const rawBatch = d?.batch || raw?.data?.batch;
 
