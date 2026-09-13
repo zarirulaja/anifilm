@@ -19,7 +19,7 @@ export function fixAnimeSlugTypos(slug: string): string {
   return text;
 }
 
-export async function resolveTmdbAnimeId(animeSlug: string): Promise<string> {
+export async function resolveTmdbAnimeId(animeSlug: string): Promise<string | null> {
   const cleanId = animeSlug.replace(/-episode-\d+.*/i, '').trim();
 
   if (/b[le|lu|u]+ck/i.test(cleanId) || /blue.*lock/i.test(cleanId)) {
@@ -65,7 +65,7 @@ export async function resolveTmdbAnimeId(animeSlug: string): Promise<string> {
     } catch {}
   }
 
-  return '131041';
+  return null;
 }
 
 export async function fetchTMDBAnimeFallback(page: number = 1) {
@@ -108,11 +108,14 @@ export async function fetchTMDBAnimeFallback(page: number = 1) {
 export async function fetchTMDBAnimeSlugDetail(animeId: string) {
   try {
     const tmdbId = await resolveTmdbAnimeId(animeId);
+    if (!tmdbId) throw new Error(`No TMDB match for ${animeId}`);
+
     const url = `https://api.themoviedb.org/3/tv/${tmdbId}?api_key=${TMDB_API_KEY}&language=id-ID`;
     const res = await fetch(url);
+    if (!res.ok) throw new Error(`TMDB TV status ${res.status}`);
     const d = await res.json();
 
-    const title = d.name || d.original_name || animeId.replace(/-/g, ' ').toUpperCase();
+    const title = d.name || d.original_name || animeId.replace(/-(sub|dub)-indo.*/gi, '').replace(/-/g, ' ').toUpperCase();
     const epCount = d.number_of_episodes || 24;
 
     return {
@@ -138,16 +141,17 @@ export async function fetchTMDBAnimeSlugDetail(animeId: string) {
       }
     };
   } catch (e) {
-    console.error('Anime detail fallback error:', e);
+    const cleanTitle = animeId.replace(/-(sub|dub)-indo.*/gi, '').replace(/-/g, ' ').toUpperCase();
     return {
       success: true,
       data: {
         details: {
           id: animeId,
           animeId: animeId,
-          title: animeId.replace(/-/g, ' ').toUpperCase(),
+          title: cleanTitle,
+          japanese: cleanTitle,
           poster: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=400&q=80',
-          synopsis: { paragraphList: ['Sinopsis anime tayangan.'] },
+          synopsis: { paragraphList: [`Sinopsis tayangan anime ${cleanTitle}.`] },
           status: 'Ongoing',
           score: '8.0',
           type: 'Anime',
