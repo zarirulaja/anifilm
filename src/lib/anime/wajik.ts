@@ -53,6 +53,7 @@ const POPULAR_SLUG_MAP: Record<string, string> = {
 export async function resolveTmdbAnimeId(animeSlug: string): Promise<string> {
   const cleanId = animeSlug
     .replace(/-ep(isode)?-\d+.*/i, '')
+    .replace(/-op-\d+.*/i, '')
     .replace(/-(sub|dub)-indo.*/gi, '')
     .trim();
 
@@ -306,10 +307,20 @@ export async function fetchWajikEpisodeDetail(episodeId: string) {
       const parts = episodeId.split('-ep-');
       animeSlug = parts[0] || '131041';
       epNum = parseInt(parts[1] || '1', 10) || 1;
+    } else if (episodeId.includes('-op-')) {
+      const parts = episodeId.split('-op-');
+      animeSlug = parts[0] || '131041';
+      epNum = parseInt(parts[1] || '1', 10) || 1;
     } else if (episodeId.includes('-episode-')) {
       const parts = episodeId.split('-episode-');
       animeSlug = parts[0] || '131041';
       epNum = parseInt(parts[1] || '1', 10) || 1;
+    } else {
+      const match = episodeId.match(/^(.*?)[-_]?(?:ep|episode|op)?[-_]?(\d+)$/i);
+      if (match) {
+        animeSlug = match[1] || '131041';
+        epNum = parseInt(match[2] || '1', 10) || 1;
+      }
     }
 
     const tmdbId = await resolveTmdbAnimeId(animeSlug);
@@ -317,7 +328,7 @@ export async function fetchWajikEpisodeDetail(episodeId: string) {
     // Calculate exact mapped Season and Episode numbers
     const { season, episode } = await getSeasonAndEpisode(tmdbId, epNum);
 
-    // Stream URL routed through /api/proxy/stream to bypass ISP DNS block & X-Frame-Options
+    // Stream URL routed through /api/proxy/stream with base tag injection to fix blank iframe & ISP blocks
     const multiEmbedTarget = `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1&s=${season}&e=${episode}`;
     const defaultStreamUrl = `/api/proxy/stream?url=${encodeURIComponent(multiEmbedTarget)}`;
 
@@ -338,8 +349,8 @@ export async function fetchWajikEpisodeDetail(episodeId: string) {
               {
                 title: 'HD Sub Indo (Audio Asli Jepang 🇯🇵)',
                 serverList: [
-                  { title: 'Server 1 (MultiEmbed - Audio Jepang + Sub Indo)', serverId: `multiembed-${tmdbId}-${season}-${episode}` },
-                  { title: 'Server 2 (2Embed - Audio Jepang + Sub Indo)', serverId: `2embed-${tmdbId}-${season}-${episode}` },
+                  { title: 'Server 1 (MultiEmbed - Audio Jepang 🇯🇵)', serverId: `multiembed-${tmdbId}-${season}-${episode}` },
+                  { title: 'Server 2 (2Embed - Audio Jepang 🇯🇵)', serverId: `2embed-${tmdbId}-${season}-${episode}` },
                   { title: 'Server 3 (VidSrc Ultra HD)', serverId: `vidsrc-${tmdbId}-${season}-${episode}` },
                   { title: 'Server 4 (AutoEmbed HD)', serverId: `autoembed-${tmdbId}-${season}-${episode}` },
                   { title: 'Server 5 (VidSrc.me HD)', serverId: `vidsrcme-${tmdbId}-${season}-${episode}` },

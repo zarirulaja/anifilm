@@ -9,18 +9,35 @@ export async function GET(request: NextRequest) {
       return new NextResponse('Missing url parameter', { status: 400 });
     }
 
-    // Fetch the target stream URL with appropriate headers
+    const targetUrl = new URL(urlStr);
+
     const res = await fetch(urlStr, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Referer': 'https://tv12.lk21official.cc/',
+        'Referer': targetUrl.origin + '/',
       },
     });
 
-    const body = await res.arrayBuffer();
+    const contentType = res.headers.get('content-type') || '';
+
+    let body: ArrayBuffer | string;
+    if (contentType.includes('text/html')) {
+      let text = await res.text();
+      const baseTag = `<base href="${targetUrl.origin}/">`;
+      if (text.includes('<head>')) {
+        text = text.replace('<head>', `<head>${baseTag}`);
+      } else if (text.includes('<HEAD>')) {
+        text = text.replace('<HEAD>', `<HEAD>${baseTag}`);
+      } else {
+        text = baseTag + text;
+      }
+      body = text;
+    } else {
+      body = await res.arrayBuffer();
+    }
+
     const headers = new Headers();
 
-    // Copy original headers EXCEPT frame restriction headers
     res.headers.forEach((value, key) => {
       const lowerKey = key.toLowerCase();
       if (
@@ -32,7 +49,6 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // Explicitly allow embedding from any origin
     headers.set('Access-Control-Allow-Origin', '*');
     headers.delete('X-Frame-Options');
     headers.delete('Content-Security-Policy');
