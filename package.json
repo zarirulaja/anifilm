@@ -1,0 +1,36 @@
+{
+  "name": "nonton-anime",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -k -n \"WAJIK,LK21,NEXT\" -c \"yellow,blue,cyan\" \"cd wajik-anime-api && npm run dev\" \"cd lk21-api && npm start\" \"next dev -p 3000\"",
+    "dev:network": "concurrently -k -n \"WAJIK,LK21,NEXT\" -c \"yellow,blue,cyan\" \"cd wajik-anime-api && npm run dev\" \"cd lk21-api && npm start\" \"next dev -H 0.0.0.0 -p 3000\"",
+    "dev:tunnel": "concurrently -k -n \"WAJIK,LK21,NEXT,TUNNEL\" -c \"yellow,blue,cyan,magenta\" \"cd wajik-anime-api && npm run dev\" \"cd lk21-api && npm start\" \"next dev -H 0.0.0.0 -p 3000\" \"npx cloudflared tunnel --url http://127.0.0.1:3000\"",
+    "build": "prisma generate && next build",
+    "start": "next start -p 3000",
+    "lint": "next lint",
+    "db:push": "prisma db push",
+    "db:generate": "prisma generate"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.21.0",
+    "clsx": "^2.1.1",
+    "hls.js": "^1.5.17",
+    "lucide-react": "^0.453.0",
+    "next": "^14.2.15",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tailwind-merge": "^2.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "autoprefixer": "^10.4.20",
+    "concurrently": "^10.0.5",
+    "postcss": "^8.4.47",
+    "prisma": "^5.21.0",
+    "tailwindcss": "^3.4.14",
+    "typescript": "^5.6.3"
+  }
+}

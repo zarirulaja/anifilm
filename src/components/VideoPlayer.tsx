@@ -1,0 +1,290 @@
+'use client';
+
+import React, { useState, useEffect, useRef } from 'react';
+import { Play, Pause, Maximize, Volume2, VolumeX, RotateCcw, ChevronRight, Subtitles, Clock } from 'lucide-react';
+import { formatDuration } from '@/lib/utils/time';
+import { useToast } from '@/components/ui/Toast';
+
+interface VideoPlayerProps {
+  streamUrl: string;
+  isIframe?: boolean;
+  animeId: string;
+  animeTitle: string;
+  poster: string;
+  episodeId: string;
+  episodeTitle: string;
+  initialProgress?: number;
+  nextEpisodeId?: string | null;
+  onEpisodeCompleted?: () => void;
+}
+
+export default function VideoPlayer({
+  streamUrl,
+  isIframe = true,
+  animeId,
+  animeTitle,
+  poster,
+  episodeId,
+  episodeTitle,
+  initialProgress = 0,
+  nextEpisodeId,
+  onEpisodeCompleted,
+}: VideoPlayerProps) {
+  const { showToast } = useToast();
+  const playerContainerRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [volume, setVolume] = useState(1);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showResumePrompt, setShowResumePrompt] = useState(initialProgress > 10);
+  const [isEnded, setIsEnded] = useState(false);
+
+  // Auto-save progress every 5 seconds
+  const lastSavedTimeRef = useRef<number>(0);
+
+  const saveProgress = async (current: number, dur: number, completed: boolean = false) => {
+    if (current <= 0 && !completed) return;
+    try {
+      await fetch('/api/history/progress', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          animeId,
+          animeTitle,
+          poster,
+          episodeId,
+          episodeTitle,
+          progressSeconds: Math.floor(current),
+          durationSeconds: Math.floor(dur || 1440), // Default ~24 mins if iframe
+          completed,
+        }),
+      });
+    } catch (err) {
+      console.error('Failed to save watch progress:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (initialProgress > 10 && !isIframe && videoRef.current) {
+      videoRef.current.currentTime = initialProgress;
+    }
+  }, [initialProgress, isIframe]);
+
+  // Periodic progress saving for iframe mode
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (currentTime - lastSavedTimeRef.current > 4) {
+        lastSavedTimeRef.current = currentTime;
+        saveProgress(currentTime, duration);
+      }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [currentTime, duration, animeId, episodeId]);
+
+  // Keyboard Shortcuts handler
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger shortcuts if user is typing in an input
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement)?.tagName)) {
+        return;
+      }
+
+      if (e.code === 'Space') {
+        e.preventDefault();
+        if (!isIframe && videoRef.current) {
+          if (videoRef.current.paused) videoRef.current.play();
+          else videoRef.current.pause();
+        }
+      } else if (e.code === 'ArrowLeft') {
+        e.preventDefault();
+        if (!isIframe && videoRef.current) {
+          videoRef.current.currentTime = Math.max(0, videoRef.current.currentTime - 5);
+        }
+      } else if (e.code === 'ArrowRight') {
+        e.preventDefault();
+        if (!isIframe && videoRef.current) {
+          videoRef.current.currentTime = Math.min(duration, videoRef.current.currentTime + 5);
+        }
+      } else if (e.code === 'KeyF') {
+        e.preventDefault();
+        toggleFullscreen();
+      } else if (e.code === 'KeyM') {
+        e.preventDefault();
+        toggleMute();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [duration, isIframe]);
+
+  const toggleFullscreen = () => {
+    if (!playerContainerRef.current) return;
+    if (!document.fullscreenElement) {
+      playerContainerRef.current.requestFullscreen().catch(console.error);
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen().catch(console.error);
+      setIsFullscreen(false);
+    }
+  };
+
+  const toggleMute = () => {
+    if (videoRef.current) {
+      videoRef.current.muted = !isMuted;
+      setIsMuted(!isMuted);
+    }
+  };
+
+  const handleResumePlayback = () => {
+    if (!isIframe && videoRef.current) {
+      videoRef.current.currentTime = initialProgress;
+      videoRef.current.play();
+    }
+    setShowResumePrompt(false);
+    showToast(`Melanjutkan tayangan dari ${formatDuration(initialProgress)}`, 'info');
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Resume Banner if initialProgress exists */}
+      {showResumePrompt && (
+        <div className="flex items-center justify-between gap-4 p-4 rounded-2xl bg-red-950/80 border border-red-500/40 text-red-200 shadow-xl animate-in fade-in">
+          <div className="flex items-center gap-3">
+            <Clock className="w-5 h-5 text-red-400 shrink-0" />
+            <span className="text-sm font-medium">
+              Terakhir ditonton sampai posisi <strong>{formatDuration(initialProgress)}</strong>
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleResumePlayback}
+              className="px-4 py-1.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs shadow-md transition-colors"
+            >
+              Resume Playback
+            </button>
+            <button
+              onClick={() => setShowResumePrompt(false)}
+              className="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-300 text-xs hover:bg-slate-700"
+            >
+              Abaikan
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Main Video Player Container */}
+      <div
+        ref={playerContainerRef}
+        className="relative aspect-video w-full rounded-3xl overflow-hidden bg-black border border-slate-800 shadow-2xl group"
+      >
+        {streamUrl ? (
+          isIframe ? (
+            <iframe
+              src={streamUrl}
+              className="w-full h-full border-0"
+              allowFullScreen
+              allow="autoplay; encrypted-media; fullscreen"
+              title={`${animeTitle} - ${episodeTitle}`}
+            />
+          ) : (
+            <video
+              ref={videoRef}
+              src={streamUrl}
+              className="w-full h-full object-contain"
+              onPlay={() => setIsPlaying(true)}
+              onPause={() => setIsPlaying(false)}
+              onTimeUpdate={() => {
+                if (videoRef.current) {
+                  setCurrentTime(videoRef.current.currentTime);
+                  setDuration(videoRef.current.duration || 0);
+                }
+              }}
+              onEnded={() => {
+                setIsEnded(true);
+                saveProgress(duration, duration, true);
+                if (onEpisodeCompleted) onEpisodeCompleted();
+              }}
+            />
+          )
+        ) : (
+          <div className="flex flex-col items-center justify-center h-full text-slate-500 gap-3">
+            <Play className="w-12 h-12 text-slate-700 animate-pulse" />
+            <span className="text-sm">Mewuat stream video...</span>
+          </div>
+        )}
+
+        {/* Video Overlay Info Header */}
+        <div className="absolute top-4 left-4 right-4 flex items-center justify-between pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+          <div className="flex items-center gap-2 bg-slate-950/80 px-3 py-1.5 rounded-xl border border-slate-800 backdrop-blur-md">
+            <Subtitles className="w-4 h-4 text-emerald-400" />
+            <span className="text-xs font-semibold text-slate-200">🇮🇩 Subtitle Indonesia</span>
+          </div>
+
+          <button
+            onClick={toggleFullscreen}
+            className="pointer-events-auto p-2 rounded-xl bg-slate-950/80 text-white hover:bg-slate-800 backdrop-blur-md border border-slate-800 transition-colors"
+            title="Fullscreen (F)"
+          >
+            <Maximize className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* End of Episode Completed Overlay */}
+        {isEnded && (
+          <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center text-center p-6 space-y-4">
+            <h3 className="text-2xl font-extrabold text-white">Episode Selesai</h3>
+            <p className="text-sm text-slate-400 max-w-sm">
+              Kamu telah menyelesaikan tayangan episode ini.
+            </p>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => {
+                  if (videoRef.current) {
+                    videoRef.current.currentTime = 0;
+                    videoRef.current.play();
+                    setIsEnded(false);
+                  }
+                }}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-semibold"
+              >
+                <RotateCcw className="w-4 h-4" />
+                Putar Ulang
+              </button>
+
+              {nextEpisodeId && (
+                <a
+                  href={`/watch/${animeId}/${nextEpisodeId}`}
+                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-sm font-bold shadow-lg shadow-red-600/30"
+                >
+                  <span>Episode Selanjutnya</span>
+                  <ChevronRight className="w-4 h-4" />
+                </a>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Subtitle & Keyboard Hint Bar */}
+      <div className="flex flex-wrap items-center justify-between text-xs text-slate-400 px-2 gap-2">
+        <div className="flex items-center gap-2">
+          <span className="px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 font-bold border border-emerald-800/40">
+            Subtitle Indonesia Aktif
+          </span>
+          <span>• Streamed directly via Otakudesu Server</span>
+        </div>
+
+        <div className="hidden sm:flex items-center gap-3 text-slate-500">
+          <span><kbd className="px-1.5 py-0.5 bg-slate-800 rounded text-[10px] text-slate-300">Space</kbd> Play/Pause</span>
+          <span><kbd className="px-1.5 py-0.5 bg-slate-800 rounded text-[10px] text-slate-300">F</kbd> Fullscreen</span>
+          <span><kbd className="px-1.5 py-0.5 bg-slate-800 rounded text-[10px] text-slate-300">M</kbd> Mute</span>
+        </div>
+      </div>
+    </div>
+  );
+}

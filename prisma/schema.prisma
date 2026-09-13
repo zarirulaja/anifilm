@@ -1,0 +1,35 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model WatchProgress {
+  id              String   @id @default(cuid())
+  mediaType       String   @default("anime")
+  animeId         String
+  animeTitle      String
+  poster          String
+  episodeId       String
+  episodeTitle    String
+  progressSeconds Float    @default(0)
+  durationSeconds Float    @default(0)
+  completed       Boolean  @default(false)
+  updatedAt       DateTime @updatedAt
+
+  @@unique([animeId, episodeId])
+}
+
+model Favorite {
+  id        String   @id @default(cuid())
+  mediaType String   @default("anime")
+  animeId   String   @unique
+  title     String
+  poster    String
+  status    String?
+  rating    String?
+  createdAt DateTime @default(now())
+}
