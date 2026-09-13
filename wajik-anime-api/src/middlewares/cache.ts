@@ -37,12 +37,19 @@ export function serverCache(ttl?: number) {
     const originalJson = res.json.bind(res);
 
     res.json = (body: IPayload) => {
-      if (res.statusCode < 399) {
+      const ongoingLen = body?.data?.ongoing?.animeList?.length || 0;
+      const completedLen = body?.data?.completed?.animeList?.length || 0;
+      const listLen = Array.isArray(body?.data?.animeList) ? body.data.animeList.length : -1;
+
+      const isEmpty = (ongoingLen === 0 && completedLen === 0) || listLen === 0;
+
+      if (res.statusCode < 399 && !isEmpty) {
         lruCache.set(key, body, { ttl: newTTL });
       }
 
       return originalJson(body);
     };
+
 
     next();
   };

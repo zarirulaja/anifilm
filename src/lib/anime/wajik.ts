@@ -29,7 +29,9 @@ async function wajikFetch<T>(endpoint: string, options: RequestInit = {}): Promi
 export async function fetchWajikHome() {
   try {
     const res = await wajikFetch<any>('/otakudesu/home');
-    if (res?.statusCode === 200 && res?.data) return res;
+    const ongoingLen = res?.data?.ongoing?.animeList?.length || 0;
+    const completedLen = res?.data?.completed?.animeList?.length || 0;
+    if (res?.statusCode === 200 && (ongoingLen > 0 || completedLen > 0)) return res;
     throw new Error('Otakudesu home empty');
   } catch {
     return await wajikFetch<any>('/oploverz/home');
@@ -39,7 +41,7 @@ export async function fetchWajikHome() {
 export async function fetchWajikOngoing(page: number = 1) {
   try {
     const res = await wajikFetch<any>(`/otakudesu/ongoing?page=${page}`);
-    if (res?.statusCode === 200 && res?.data) return res;
+    if (res?.statusCode === 200 && (res?.data?.animeList?.length || 0) > 0) return res;
     throw new Error('Otakudesu ongoing empty');
   } catch {
     return await wajikFetch<any>(`/oploverz/anime?status=ongoing&order=latest&page=${page}`);
@@ -49,7 +51,7 @@ export async function fetchWajikOngoing(page: number = 1) {
 export async function fetchWajikCompleted(page: number = 1) {
   try {
     const res = await wajikFetch<any>(`/otakudesu/completed?page=${page}`);
-    if (res?.statusCode === 200 && res?.data) return res;
+    if (res?.statusCode === 200 && (res?.data?.animeList?.length || 0) > 0) return res;
     throw new Error('Otakudesu completed empty');
   } catch {
     return await wajikFetch<any>(`/oploverz/anime?status=completed&order=rating&page=${page}`);
@@ -59,12 +61,13 @@ export async function fetchWajikCompleted(page: number = 1) {
 export async function fetchWajikSearch(query: string) {
   try {
     const res = await wajikFetch<any>(`/otakudesu/search?q=${encodeURIComponent(query)}`);
-    if (res?.statusCode === 200 && res?.data?.animeList?.length) return res;
+    if (res?.statusCode === 200 && (res?.data?.animeList?.length || 0) > 0) return res;
     throw new Error('Otakudesu search empty');
   } catch {
     return await wajikFetch<any>(`/oploverz/search?q=${encodeURIComponent(query)}`);
   }
 }
+
 
 function cleanAnimeSlug(slug: string): string {
   return slug
