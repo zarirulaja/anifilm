@@ -1,161 +1,127 @@
-# NontonAnime — Personal Anime Streaming Dashboard
+# NontonStreaming — Personal Anime & Movie Hub
 
-A modern, cinematic, private personal anime streaming web application powered by **Wajik Anime API** (Otakudesu source), Next.js App Router, TypeScript, Tailwind CSS, Lucide Icons, and SQLite + Prisma ORM.
+A modern, cinematic, private personal streaming web application supporting **Dual Mode**:
+1. 🍿 **Mode Anime**: Powered by **Wajik Anime API** (Otakudesu source).
+2. 🎬 **Mode Film & Series**: Powered by **TMDB Engine API** (Bahasa Indonesia metadata) & **Multi-Server HD Player Engine** (Sub Indo).
 
----
-
-## Features
-
-- 🎬 **Real Anime Streaming Data**: Powered by Wajik Anime API (`http://localhost:3001` - Otakudesu source) with 0 fake/dummy data.
-- ⚡ **Next.js App Router & Server API Proxy Layer**: Clean separation of frontend and backend proxy services preventing CORS issues.
-- 📺 **Custom Video Player**:
-  - Embedded streaming player support.
-  - Server & Quality selection controls (360p, 480p, 720p, 1080p).
-  - Indonesian Subtitle badge indicator.
-  - Keyboard shortcuts (`Space`: Play/Pause, `Left`/`Right`: Seek, `F`: Fullscreen, `M`: Mute).
-  - Automatic watch progress saver (every 5 seconds) to local SQLite DB.
-  - "Resume Playback" notification prompt.
-  - Automatic next episode completion navigation.
-- 🔍 **Real-Time Anime Search**: Debounced search input syncing query params.
-- ⭐ **Favorites System**: Add/remove anime to local SQLite database with instant toast notifications.
-- 🕒 **Watch History & Continue Watching**: Track progress, resume where you left off, remove individual history items, or clear history with confirmation modal.
-- 📱 **Cinematic Dark Theme**: Responsive glassmorphism UI with custom skeleton loaders.
+Built with **Next.js 14 App Router**, **TypeScript**, **Tailwind CSS**, **Lucide Icons**, **Prisma ORM**, and **SQLite**.
 
 ---
 
-## Requirements
+## ✨ Fitur Utama
 
-- Node.js 18.x or later (Tested on Node v24)
-- npm or yarn
-- Wajik Anime API running locally at `http://localhost:3001`
+- 🔄 **Dual Mode Toggle (Anime & Film/Series)**:
+  - Saklar mode interaktif `[ 🍿 Anime ] [ 🎬 Film & Series ]` di Navbar.
+  - Skema warna, logo, dan navigasi menyesuaikan mode aktif secara otomatis.
+- 🍿 **Mode Anime (Otakudesu)**:
+  - Streaming Anime Ongoing & Completed lengkap dengan daftar episode, server streaming, dan indikator Subtitle Indonesia.
+- 🎬 **Mode Film & Series (TMDB + Multi-Server HD Sub Indo)**:
+  - Ribuan film bioskop & serial TV populer dengan judul, sinopsis, genre, poster HD, rating, sutradara, dan daftar pemain dalam **Bahasa Indonesia**.
+  - **4 Server Player HD Bebas Blokir Frame**:
+    - 🍿 **Server VidLink HD**
+    - 🎬 **Server AutoEmbed HD**
+    - 📺 **Server 2Embed HD**
+    - ⚡ **Server VidSrc HD**
+- 📺 **Custom Video Player & Watch Progress**:
+  - Pemutar video interaktif dengan dukungan *Keyboard Shortcuts* (`Space`: Play/Pause, `F`: Fullscreen, `M`: Mute, `Arrow`: Seek).
+  - Menyimpan posisi waktu tontonan secara otomatis ke SQLite lokal.
+  - Prompt *"Resume Playback"* saat melanjutkan tayangan dari posisi terakhir.
+- 🔍 **Pencarian Dinamis**: Pencarian anime atau film/series sesuai mode aktif.
+- ⭐ **Favorit & Riwayat Tontonan**: Tersimpan di database SQLite lokal (`dev.db`) dan terfilter otomatis berdasarkan mode aktif.
+- ⚡ **1 Perintah Untuk Semua Layanan (`npm run dev:tunnel`)**:
+  - Menjalankan Wajik Anime API (port 3001), LK21/Movie Service (port 3002), Next.js Frontend (port 3000), dan Cloudflare Public HTTPS Tunnel sekaligus.
 
 ---
 
-## Environment Variables
+## 🛠️ Prasyarat & Instalasi
 
-Create `.env` file in the root directory:
+### 1. Prasyarat
+- Node.js v18 atau lebih baru (Disarankan Node v20/v24).
+- npm atau yarn.
+
+### 2. File `.env`
+Buat file `.env` di folder root:
 
 ```env
-# Wajik Anime API Local Base Endpoint
+# Wajik Anime API Endpoint
 WAJIK_API_URL=http://localhost:3001
 
-# SQLite Local Database Connection String
+# Movie API Endpoint (Port 3002)
+LK21_API_URL=http://localhost:3002
+
+# SQLite Database Connection
 DATABASE_URL="file:./dev.db"
+
+# TMDB API Key (Optional Override)
+TMDB_API_KEY=4e44d9029b1270a757cddc766a1bcb63
 ```
 
-A template file `.env.example` is also included.
+### 3. Instalasi Dependencies & Database Setup
+```bash
+npm install
+npx prisma db push
+npx prisma generate
+```
 
 ---
 
-## Installation & Setup
+## 🚀 Cara Menjalankan Aplikasi
 
-1. **Install dependencies**:
-   ```bash
-   npm install
-   ```
+Cukup **1 perintah di 1 terminal**:
 
-2. **Database Setup (Prisma + SQLite)**:
-   ```bash
-   npx prisma db push
-   npx prisma generate
-   ```
+```bash
+npm run dev:tunnel
+```
 
-3. **Running the Application (Single Terminal)**:
-   You only need **1 command** in a single terminal. It will automatically start both Wajik Anime API (port 3001) and Next.js Web App (port 3000):
-
-   - **For local PC access**:
-     ```bash
-     npm run dev
-     ```
-
-   - **For Mobile / Wi-Fi Network access**:
-     ```bash
-     npm run dev:network
-     ```
-     *(Open `http://<YOUR_IP>:3000` from your mobile browser).*
-
-   - **For Instant Mobile Access Anywhere (With Cloudflare Public Link)**:
-     ```bash
-     npm run dev:tunnel
-     ```
-     *(Runs Wajik API, Next.js, and Cloudflare Tunnel simultaneously in 1 terminal window!)*
-
-
-5. **Production Build**:
-   ```bash
-   npm run build
-   npm start
-   ```
+Perintah ini akan menjalankan 4 layanan sekaligus:
+1. **Wajik Anime API**: `http://localhost:3001`
+2. **LK21/Movie API**: `http://localhost:3002`
+3. **Next.js Web Frontend**: `http://localhost:3000`
+4. **Cloudflare Tunnel**: Link publik HTTPS (untuk diakses langsung dari HP).
 
 ---
 
-## API Proxy Architecture & Endpoints
-
-All frontend requests route through Next.js API routes (`src/app/api/...`) to communicate with Wajik API:
-
-- `GET /api/anime/home` → Proxies `GET /otakudesu/home`
-- `GET /api/anime/ongoing?page=1` → Proxies `GET /otakudesu/ongoing?page=1`
-- `GET /api/anime/completed?page=1` → Proxies `GET /otakudesu/completed?page=1`
-- `GET /api/anime/search?q=query` → Proxies `GET /otakudesu/search?q=query`
-- `GET /api/anime/[id]` → Proxies `GET /otakudesu/anime/[id]`
-- `GET /api/anime/episode/[episodeId]` → Proxies `GET /otakudesu/episode/[episodeId]`
-- `GET /api/anime/server/[serverId]` → Proxies `GET /otakudesu/server/[serverId]`
-- `GET/POST/DELETE /api/favorites` → SQLite Prisma Favorites model
-- `GET/DELETE /api/history` → SQLite Prisma WatchProgress model
-- `GET/POST /api/history/progress` → Save & retrieve progress per episode
-
----
-
-## Project Structure
+## 📁 Struktur Projek
 
 ```
 nonton_anime/
 ├── .env                        # Local Environment Variables
-├── .env.example                # Environment Variable Template
 ├── package.json
 ├── tsconfig.json
 ├── tailwind.config.js
-├── postcss.config.js
 ├── prisma/
-│   └── schema.prisma           # SQLite Database Schema
+│   └── schema.prisma           # Database Schema (WatchProgress & Favorite)
+├── wajik-anime-api/            # Server Backend Wajik Anime API (Port 3001)
+├── lk21-api/                   # Server Backend LK21 Movie API (Port 3002)
 ├── src/
 │   ├── app/
-│   │   ├── layout.tsx          # Root Layout & Toast Provider
-│   │   ├── page.tsx            # Homepage (Hero, Continue Watching, Ongoing)
-│   │   ├── ongoing/page.tsx    # Ongoing Anime Page with Pagination
-│   │   ├── completed/page.tsx  # Completed Anime Page
-│   │   ├── search/page.tsx     # Search Page
-│   │   ├── anime/[id]/page.tsx # Anime Details & Episode Selector
-│   │   ├── watch/[animeId]/[episodeId]/page.tsx # Video Player Page
-│   │   ├── favorites/page.tsx  # Favorites Page
-│   │   ├── history/page.tsx    # Watch History Page
-│   │   └── api/                # Next.js API Proxy Routes
+│   │   ├── layout.tsx          # Root Layout, MediaMode Context, & Toast Provider
+│   │   ├── page.tsx            # Dynamic Homepage (Anime vs Movie)
+│   │   ├── ongoing/page.tsx    # Halaman Ongoing Anime
+│   │   ├── completed/page.tsx  # Halaman Completed Anime
+│   │   ├── movies/page.tsx     # Halaman Popular Film (TMDB / LK21)
+│   │   ├── series/page.tsx     # Halaman Popular Series (TMDB / NontonDrama)
+│   │   ├── movie/[id]/page.tsx # Halaman Detail Film & Pemutar Video Stream
+│   │   ├── anime/[id]/page.tsx # Halaman Detail Anime
+│   │   ├── watch/[animeId]/[episodeId]/page.tsx # Pemutar Video Anime
+│   │   ├── search/page.tsx     # Pencarian Dinamis Mode
+│   │   ├── favorites/page.tsx  # Halaman Favorit
+│   │   ├── history/page.tsx    # Halaman Riwayat Tontonan
+│   │   └── api/                # Next.js API Proxy Routes (/api/anime/* & /api/movie/*)
 │   ├── components/
-│   │   ├── ui/Toast.tsx        # Toast Notification System
+│   │   ├── ModeSwitcher.tsx    # Tombol Saklar Mode UI
 │   │   ├── Navbar.tsx          # Navigation Header
-│   │   ├── Footer.tsx          # Page Footer
-│   │   ├── AnimeCard.tsx       # Reusable Anime Card
-│   │   ├── AnimeCardSkeleton.tsx # Shimmer Loader
-│   │   ├── HeroBanner.tsx      # Homepage Hero Section
-│   │   ├── ContinueWatchingCard.tsx # Watch Progress Card
-│   │   ├── VideoPlayer.tsx     # Player & Keyboard Shortcut Handler
-│   │   ├── ServerSelector.tsx  # Server & Quality Switcher
-│   │   └── EpisodeList.tsx     # Episode Grid & Filter
+│   │   ├── MovieCard.tsx       # Card Film dengan Rating & Quality Badge
+│   │   ├── AnimeCard.tsx       # Card Anime
+│   │   └── VideoPlayer.tsx     # Custom Pemutar Video & Keyboard Handler
 │   └── lib/
-│       ├── anime/
-│       │   ├── types.ts        # Normalized Domain Models
-│       │   ├── wajik.ts        # Fetcher for Wajik API
-│       │   └── adapter.ts      # Response Normalizer
-│       ├── db/prisma.ts        # Prisma Client Instance
-│       └── utils/time.ts       # Formatting Utilities
+│       ├── anime/              # Service Layer Wajik Anime API
+│       └── movie/              # Service Layer TMDB & LK21 API
 └── README.md
 ```
 
 ---
 
-## Troubleshooting
+## 📝 Lisensi
 
-- **Error: "Layanan Wajik Anime API sedang tidak tersedia"**:
-  Make sure Wajik API is running on port 3001 (`http://localhost:3001/otakudesu/home`).
-- **Prisma Client initialization error**:
-  Run `npx prisma generate && npx prisma db push` to synchronize the SQLite database.
+Projek pribadi untuk tujuan pembelajaran dan hiburan.
