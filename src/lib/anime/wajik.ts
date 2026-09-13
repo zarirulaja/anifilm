@@ -397,7 +397,7 @@ export async function fetchWajikAnimeDetail(animeId: string) {
     const synopsisText = synopsisMatch ? synopsisMatch[1].replace(/<[^>]+>/g, '').trim() : 'Deskripsi tayangan anime.';
 
     const epMatches: any[] = [];
-    const epRegex = /href="https:\/\/otakudesu\.[a-z]+\/episode\/([^\/"]+)\/?"[^>]*>([^<]+)/gi;
+    const epRegex = /href="[^"]*\/episode\/([^\/"]+)\/?"[^>]*>([^<]+)/gi;
     let m: RegExpExecArray | null;
     while ((m = epRegex.exec(html)) !== null) {
       if (!epMatches.some(e => e.episodeId === m![1])) {
@@ -451,10 +451,10 @@ export async function fetchWajikEpisodeDetail(episodeId: string) {
     const streamUrl = iframeMatch ? iframeMatch[1] : '';
 
     // Extract prev & next episode links
-    const prevMatch = html.match(/href="https:\/\/otakudesu\.[a-z]+\/episode\/([^\/"]+)\/?"[^>]*rel="prev"/i) ||
-                      html.match(/<a[^>]+href="https:\/\/otakudesu\.[a-z]+\/episode\/([^\/"]+)\/?"[^>]*>[\s\S]*?Prev/i);
-    const nextMatch = html.match(/href="https:\/\/otakudesu\.[a-z]+\/episode\/([^\/"]+)\/?"[^>]*rel="next"/i) ||
-                      html.match(/<a[^>]+href="https:\/\/otakudesu\.[a-z]+\/episode\/([^\/"]+)\/?"[^>]*>[\s\S]*?Next/i);
+    const prevMatch = html.match(/href="[^"]*\/episode\/([^\/"]+)\/?"[^>]*rel="prev"/i) ||
+                      html.match(/<a[^>]+href="[^"]*\/episode\/([^\/"]+)\/?"[^>]*>[\s\S]*?Prev/i);
+    const nextMatch = html.match(/href="[^"]*\/episode\/([^\/"]+)\/?"[^>]*rel="next"/i) ||
+                      html.match(/<a[^>]+href="[^"]*\/episode\/([^\/"]+)\/?"[^>]*>[\s\S]*?Next/i);
 
     const prevEpId = prevMatch ? prevMatch[1] : null;
     const nextEpId = nextMatch ? nextMatch[1] : null;
