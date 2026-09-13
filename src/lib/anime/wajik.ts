@@ -125,7 +125,55 @@ export async function getSeasonAndEpisode(tmdbId: string, absEpisodeNum: number)
   }
 }
 
+const OTAKUDESU_BASE = 'https://otakudesu.cloud';
+
 export async function fetchWajikHome() {
+  try {
+    const res = await fetch(`${OTAKUDESU_BASE}/`, { headers: { 'User-Agent': USER_AGENT }, next: { revalidate: 1800 } });
+    if (!res.ok) throw new Error(`Home HTTP ${res.status}`);
+    const html = await res.text();
+
+    const ongoing: any[] = [];
+    const itemRegex = /<a href="https:\/\/[^"]*otakudesu[^"]*\/anime\/([^"\/]+)\/?"[^>]*>([\s\S]*?)<\/a>/gi;
+    let m: any;
+    while ((m = itemRegex.exec(html)) !== null) {
+      const animeId = m[1];
+      const inner = m[2];
+      const titleMatch = inner.match(/<h2[^>]*>([^<]+)<\/h2>/i) || inner.match(/title="([^"]+)"/i);
+      const imgMatch = inner.match(/src="([^"]+)"/i);
+      const epMatch = inner.match(/<div class="epz"[^>]*>([^<]+)/i);
+
+      if (titleMatch && !animeId.includes('genre') && !ongoing.some(item => item.animeId === animeId)) {
+        ongoing.push({
+          id: animeId,
+          animeId,
+          title: titleMatch[1].replace(/Subtitle Indonesia/i, '').replace(/&#8211;/g, '-').trim(),
+          poster: imgMatch ? imgMatch[1] : 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=400&q=80',
+          episodes: epMatch ? epMatch[1].trim() : 'Sub Indo HD',
+          releaseDay: 'Update Terbaru',
+          score: '8.5',
+          status: 'Ongoing'
+        });
+      }
+    }
+
+    if (ongoing.length >= 5) {
+      return {
+        success: true,
+        data: {
+          ongoing: ongoing.slice(0, 10),
+          completed: ongoing.slice(10, 20)
+        }
+      };
+    }
+    throw new Error('Insufficient Otakudesu home items scraped');
+  } catch (e) {
+    console.error('Home anime fetch error, fallback to TMDB:', e);
+    return await fetchTMDBHome();
+  }
+}
+
+async function fetchTMDBHome() {
   try {
     const url = `https://api.themoviedb.org/3/discover/tv?api_key=${TMDB_API_KEY}&with_genres=16&with_origin_country=JP&sort_by=vote_count.desc&language=en-US`;
     const res = await fetch(url, { next: { revalidate: 3600 } });
@@ -148,16 +196,54 @@ export async function fetchWajikHome() {
         completed: list.slice(10, 20),
       }
     };
-  } catch (e) {
-    console.error('Home anime fetch error:', e);
-    return {
-      success: false,
-      data: { ongoing: [], completed: [] }
-    };
+  } catch {
+    return { success: false, data: { ongoing: [], completed: [] } };
   }
 }
 
 export async function fetchWajikOngoing(page: number = 1) {
+  try {
+    const url = page === 1 ? `${OTAKUDESU_BASE}/ongoing-anime/` : `${OTAKUDESU_BASE}/ongoing-anime/page/${page}/`;
+    const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT }, next: { revalidate: 1800 } });
+    if (!res.ok) throw new Error(`Ongoing HTTP ${res.status}`);
+    const html = await res.text();
+
+    const animeList: any[] = [];
+    const itemRegex = /<a href="https:\/\/[^"]*otakudesu[^"]*\/anime\/([^"\/]+)\/?"[^>]*>([\s\S]*?)<\/a>/gi;
+    let m: any;
+    while ((m = itemRegex.exec(html)) !== null) {
+      const animeId = m[1];
+      const inner = m[2];
+      const titleMatch = inner.match(/<h2[^>]*>([^<]+)<\/h2>/i) || inner.match(/title="([^"]+)"/i);
+      const imgMatch = inner.match(/src="([^"]+)"/i);
+      const epMatch = inner.match(/<div class="epz"[^>]*>([^<]+)/i);
+
+      if (titleMatch && !animeId.includes('genre') && !animeList.some(item => item.animeId === animeId)) {
+        animeList.push({
+          id: animeId,
+          animeId,
+          title: titleMatch[1].replace(/Subtitle Indonesia/i, '').replace(/&#8211;/g, '-').trim(),
+          poster: imgMatch ? imgMatch[1] : 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=400&q=80',
+          episodes: epMatch ? epMatch[1].trim() : 'Sub Indo HD',
+          status: 'Ongoing'
+        });
+      }
+    }
+
+    if (animeList.length > 0) {
+      return {
+        success: true,
+        data: { animeList },
+        pagination: { currentPage: page, hasNextPage: animeList.length >= 10, totalPages: 10 }
+      };
+    }
+    throw new Error('No ongoing anime scraped');
+  } catch {
+    return await fetchTMDBOngoing(page);
+  }
+}
+
+async function fetchTMDBOngoing(page: number = 1) {
   try {
     const url = `https://api.themoviedb.org/3/discover/tv?api_key=${TMDB_API_KEY}&with_genres=16&with_origin_country=JP&sort_by=popularity.desc&language=en-US&page=${page}`;
     const res = await fetch(url, { next: { revalidate: 3600 } });
@@ -182,6 +268,48 @@ export async function fetchWajikOngoing(page: number = 1) {
 }
 
 export async function fetchWajikCompleted(page: number = 1) {
+  try {
+    const url = page === 1 ? `${OTAKUDESU_BASE}/complete-anime/` : `${OTAKUDESU_BASE}/complete-anime/page/${page}/`;
+    const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT }, next: { revalidate: 1800 } });
+    if (!res.ok) throw new Error(`Completed HTTP ${res.status}`);
+    const html = await res.text();
+
+    const animeList: any[] = [];
+    const itemRegex = /<a href="https:\/\/[^"]*otakudesu[^"]*\/anime\/([^"\/]+)\/?"[^>]*>([\s\S]*?)<\/a>/gi;
+    let m: any;
+    while ((m = itemRegex.exec(html)) !== null) {
+      const animeId = m[1];
+      const inner = m[2];
+      const titleMatch = inner.match(/<h2[^>]*>([^<]+)<\/h2>/i) || inner.match(/title="([^"]+)"/i);
+      const imgMatch = inner.match(/src="([^"]+)"/i);
+      const epMatch = inner.match(/<div class="epz"[^>]*>([^<]+)/i);
+
+      if (titleMatch && !animeId.includes('genre') && !animeList.some(item => item.animeId === animeId)) {
+        animeList.push({
+          id: animeId,
+          animeId,
+          title: titleMatch[1].replace(/Subtitle Indonesia/i, '').replace(/&#8211;/g, '-').trim(),
+          poster: imgMatch ? imgMatch[1] : 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=400&q=80',
+          episodes: epMatch ? epMatch[1].trim() : 'Complete Sub Indo',
+          status: 'Completed'
+        });
+      }
+    }
+
+    if (animeList.length > 0) {
+      return {
+        success: true,
+        data: { animeList },
+        pagination: { currentPage: page, hasNextPage: animeList.length >= 10, totalPages: 10 }
+      };
+    }
+    throw new Error('No completed anime scraped');
+  } catch {
+    return await fetchTMDBCompleted(page);
+  }
+}
+
+async function fetchTMDBCompleted(page: number = 1) {
   try {
     const targetPage = page + 1;
     const url = `https://api.themoviedb.org/3/discover/tv?api_key=${TMDB_API_KEY}&with_genres=16&with_origin_country=JP&sort_by=vote_count.desc&language=en-US&page=${targetPage}`;
@@ -208,6 +336,48 @@ export async function fetchWajikCompleted(page: number = 1) {
 
 export async function fetchWajikSearch(query: string) {
   try {
+    const url = `${OTAKUDESU_BASE}/?s=${encodeURIComponent(query)}&post_type=anime`;
+    const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });
+    if (!res.ok) throw new Error(`Search HTTP ${res.status}`);
+    const html = await res.text();
+
+    const animeList: any[] = [];
+    const searchItemRegex = /<li[^>]*>[\s\S]*?<img[^>]+src="([^"]+)"[\s\S]*?<h2[^>]*><a href="https:\/\/[^"]*otakudesu[^"]*\/anime\/([^"\/]+)\/?"[^>]*>([^<]+)<\/a>/gi;
+    let m: any;
+    while ((m = searchItemRegex.exec(html)) !== null) {
+      animeList.push({
+        id: m[2],
+        animeId: m[2],
+        title: m[3].replace(/Subtitle Indonesia/i, '').replace(/&#8211;/g, '-').trim(),
+        poster: m[1],
+        status: 'Anime Sub Indo'
+      });
+    }
+
+    if (animeList.length === 0) {
+      const altRegex = /<h2[^>]*><a href="https:\/\/[^"]*otakudesu[^"]*\/anime\/([^"\/]+)\/?"[^>]*>([^<]+)<\/a>/gi;
+      while ((m = altRegex.exec(html)) !== null) {
+        animeList.push({
+          id: m[1],
+          animeId: m[1],
+          title: m[2].replace(/Subtitle Indonesia/i, '').replace(/&#8211;/g, '-').trim(),
+          poster: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=400&q=80',
+          status: 'Anime Sub Indo'
+        });
+      }
+    }
+
+    if (animeList.length > 0) {
+      return { success: true, data: { animeList } };
+    }
+    throw new Error('No search results scraped');
+  } catch {
+    return await fetchTMDBSearch(query);
+  }
+}
+
+async function fetchTMDBSearch(query: string) {
+  try {
     const url = `https://api.themoviedb.org/3/search/tv?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}&language=en-US`;
     const res = await fetch(url);
     const json = await res.json();
@@ -226,6 +396,65 @@ export async function fetchWajikSearch(query: string) {
 
 export async function fetchWajikAnimeDetail(animeId: string) {
   try {
+    const cleanId = animeId.replace(/^\//, '').replace(/\/$/, '');
+    const url = `${OTAKUDESU_BASE}/anime/${cleanId}/`;
+    const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });
+    if (!res.ok) throw new Error(`Anime detail status ${res.status}`);
+    const html = await res.text();
+
+    const titleMatch = html.match(/<h1[^>]*>([^<]+)<\/h1>/i) || html.match(/<div class="j2xtda">[^<]*<h1>([^<]+)/i);
+    const title = titleMatch ? titleMatch[1].replace(/&#8211;/g, '-').replace(/&amp;/g, '&').replace(/Subtitle Indonesia.*/i, '').trim() : cleanId;
+
+    const posterMatch = html.match(/<img[^>]+src="(https:\/\/[^"]+\.(jpg|png|jpeg|webp))"/i);
+    const poster = posterMatch ? posterMatch[1] : '';
+
+    const synopsisMatch = html.match(/<div class="sinopc">([\s\S]*?)<\/div>/i);
+    const synopsisText = synopsisMatch ? synopsisMatch[1].replace(/<[^>]+>/g, '').trim() : 'Sinopsis tayangan anime.';
+
+    const epMatches: any[] = [];
+    const epRegex = /href="(https:\/\/[^"]*otakudesu[^"]*\/episode\/([^"\/]+)\/?)"[^>]*>([^<]+)/gi;
+    let m: any;
+    while ((m = epRegex.exec(html)) !== null) {
+      const epId = m[2];
+      const epTitle = m[3];
+      if (epId && epTitle && !epMatches.some(e => e.episodeId === epId)) {
+        epMatches.push({
+          episodeId: epId,
+          title: epTitle.replace(/&#8211;/g, '-').replace(/&amp;/g, '&').trim(),
+        });
+      }
+    }
+
+    if (epMatches.length > 0) {
+      return {
+        success: true,
+        data: {
+          details: {
+            id: cleanId,
+            animeId: cleanId,
+            title,
+            japanese: title,
+            poster,
+            synopsis: { paragraphList: [synopsisText] },
+            status: 'Ongoing',
+            score: '8.5',
+            type: 'Anime',
+            episodes: `${epMatches.length} Episode`,
+            genreList: [{ title: 'Action', genreId: 'action' }, { title: 'Animation', genreId: 'animation' }],
+            episodeList: epMatches,
+          }
+        }
+      };
+    }
+    throw new Error('No episodes scraped from Otakudesu');
+  } catch (e) {
+    console.error(`Otakudesu detail scrape error for ${animeId}, fallback to TMDB:`, e);
+    return await fetchTMDBAnimeDetail(animeId);
+  }
+}
+
+async function fetchTMDBAnimeDetail(animeId: string) {
+  try {
     const tmdbId = await resolveTmdbAnimeId(animeId);
     const url = `https://api.themoviedb.org/3/tv/${tmdbId}?api_key=${TMDB_API_KEY}&language=en-US`;
     const res = await fetch(url);
@@ -234,7 +463,6 @@ export async function fetchWajikAnimeDetail(animeId: string) {
 
     const title = d.name || d.original_name || animeId.replace(/-(sub|dub)-indo.*/gi, '').replace(/-/g, ' ').toUpperCase();
     
-    // Calculate total episode count from all regular seasons
     const regularSeasons = (d.seasons || []).filter((s: any) => s.season_number > 0);
     let totalEpCount = d.number_of_episodes || 24;
     if (regularSeasons.length > 0) {
@@ -267,7 +495,6 @@ export async function fetchWajikAnimeDetail(animeId: string) {
       }
     };
   } catch (e) {
-    console.error(`Anime detail error for ${animeId}:`, e);
     const cleanTitle = animeId.replace(/-(sub|dub)-indo.*/gi, '').replace(/-/g, ' ').toUpperCase();
     return {
       success: true,
@@ -353,9 +580,13 @@ export async function resolveOtakudesuStream(animeTitle: string, epNum: number):
 
     const epRegex = /href="(https:\/\/[^"]*otakudesu[^"]*\/episode\/[^"]+)"[^>]*>([^<]+)/gi;
     const episodes: Array<{ url: string; title: string }> = [];
-    let m;
+    let m: any;
     while ((m = epRegex.exec(detailHtml)) !== null) {
-      episodes.push({ url: m[1], title: m[2].trim() });
+      const epUrl = m[1];
+      const epTitle = m[2];
+      if (epUrl && epTitle) {
+        episodes.push({ url: epUrl, title: epTitle.trim() });
+      }
     }
 
     if (episodes.length === 0) return null;
