@@ -35,24 +35,33 @@ export async function fetchTMDBAnimeFallback(page: number = 1) {
     const json = await res.json();
     const list = (json.results || []).map((item: any) => ({
       id: String(item.id),
+      animeId: String(item.id),
       title: item.name || item.original_name || 'Anime',
       poster: item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=400&q=80',
-      currentEpisode: 'Sub Indo HD',
+      episodes: 'Sub Indo HD',
       releaseDay: 'Update',
-      rating: item.vote_average ? item.vote_average.toFixed(1) : '8.0',
+      score: item.vote_average ? item.vote_average.toFixed(1) : '8.0',
+      status: 'Ongoing',
     }));
 
     return {
       success: true,
       data: {
-        ongoing: list.slice(0, 10),
-        completed: list.slice(10, 20),
+        ongoing: { animeList: list.slice(0, 10) },
+        completed: { animeList: list.slice(10, 20) },
         animeList: list,
       }
     };
   } catch (e) {
     console.error('TMDB Anime fallback error:', e);
-    return { success: false, data: { ongoing: [], completed: [], animeList: [] } };
+    return {
+      success: false,
+      data: {
+        ongoing: { animeList: [] },
+        completed: { animeList: [] },
+        animeList: [],
+      }
+    };
   }
 }
 
@@ -90,8 +99,9 @@ export async function fetchWajikSearch(query: string) {
       const json = await res.json();
       const list = (json.results || []).map((item: any) => ({
         id: String(item.id),
+        animeId: String(item.id),
         title: item.name || item.original_name,
-        poster: item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : '/placeholder.png',
+        poster: item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=400&q=80',
         status: 'Anime Sub Indo',
       }));
       return { success: true, data: { animeList: list } };
@@ -105,7 +115,6 @@ export async function fetchWajikAnimeDetail(animeId: string) {
   try {
     return await wajikFetch<any>(`/otakudesu/anime/${encodeURIComponent(animeId)}`);
   } catch {
-    // If numeric ID, fallback to TMDB detail
     if (/^\d+$/.test(animeId)) {
       try {
         const url = `https://api.themoviedb.org/3/tv/${animeId}?api_key=${TMDB_API_KEY}&language=id-ID`;
@@ -114,19 +123,20 @@ export async function fetchWajikAnimeDetail(animeId: string) {
         return {
           success: true,
           data: {
-            id: String(d.id),
-            title: d.name || d.original_name,
-            japaneseTitle: d.original_name,
-            poster: d.poster_path ? `https://image.tmdb.org/t/p/w500${d.poster_path}` : '/placeholder.png',
-            synopsis: d.overview || 'Sinopsis anime.',
-            status: d.status || 'Completed',
-            rating: d.vote_average ? d.vote_average.toFixed(1) : '8.0',
-            genres: (d.genres || []).map((g: any) => g.name),
-            episodes: Array.from({ length: Math.min(d.number_of_episodes || 12, 24) }).map((_, i) => ({
-              id: `${animeId}-episode-${i + 1}`,
-              title: `Episode ${i + 1}`,
-              date: d.first_air_date || 'Terbaru',
-            })),
+            details: {
+              id: String(d.id),
+              title: d.name || d.original_name,
+              japanese: d.original_name,
+              poster: d.poster_path ? `https://image.tmdb.org/t/p/w500${d.poster_path}` : 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=400&q=80',
+              synopsis: { paragraphList: [d.overview || 'Sinopsis anime.'] },
+              status: d.status || 'Completed',
+              score: d.vote_average ? d.vote_average.toFixed(1) : '8.0',
+              genreList: (d.genres || []).map((g: any) => ({ title: g.name, genreId: String(g.id) })),
+              episodeList: Array.from({ length: Math.min(d.number_of_episodes || 12, 24) }).map((_, i) => ({
+                episodeId: `${animeId}-episode-${i + 1}`,
+                title: `Episode ${i + 1}`,
+              })),
+            }
           }
         };
       } catch (e) {

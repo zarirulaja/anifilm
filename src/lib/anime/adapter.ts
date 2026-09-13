@@ -10,14 +10,14 @@ import {
 
 export function normalizeAnimeSummary(item: any): AnimeSummary {
   return {
-    id: item?.animeId || item?.id || '',
-    title: item?.title || 'Untitled Anime',
-    poster: item?.poster || '/placeholder.png',
+    id: String(item?.animeId || item?.id || ''),
+    title: item?.title || item?.name || 'Untitled Anime',
+    poster: item?.poster || item?.poster_path ? (item?.poster_path?.startsWith('http') ? item.poster_path : `https://image.tmdb.org/t/p/w500${item.poster_path}`) : 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=400&q=80',
     episodes: item?.episodes ? String(item.episodes) : undefined,
-    score: item?.score ? String(item.score).replace('Rating :', '').trim() : undefined,
+    score: item?.score ? String(item.score).replace('Rating :', '').trim() : item?.vote_average ? item.vote_average.toFixed(1) : undefined,
     releaseDay: item?.releaseDay || undefined,
     lastReleaseDate: item?.lastReleaseDate || undefined,
-    status: item?.status ? String(item.status).replace('Status :', '').trim() : undefined,
+    status: item?.status ? String(item.status).replace('Status :', '').trim() : 'Ongoing',
   };
 }
 
@@ -37,8 +37,13 @@ export function normalizeHomeResponse(raw: any): {
   ongoing: AnimeSummary[];
   completed: AnimeSummary[];
 } {
-  const ongoingRaw = raw?.data?.ongoing?.animeList || [];
-  const completedRaw = raw?.data?.completed?.animeList || [];
+  const ongoingRaw = Array.isArray(raw?.data?.ongoing)
+    ? raw.data.ongoing
+    : (raw?.data?.ongoing?.animeList || []);
+
+  const completedRaw = Array.isArray(raw?.data?.completed)
+    ? raw.data.completed
+    : (raw?.data?.completed?.animeList || []);
 
   return {
     ongoing: ongoingRaw.map(normalizeAnimeSummary),
@@ -47,7 +52,12 @@ export function normalizeHomeResponse(raw: any): {
 }
 
 export function normalizePaginatedList(raw: any): PaginatedAnimeResult {
-  const list = raw?.data?.animeList || [];
+  const list = Array.isArray(raw?.data?.animeList)
+    ? raw.data.animeList
+    : Array.isArray(raw?.data)
+    ? raw.data
+    : [];
+
   return {
     animeList: list.map(normalizeAnimeSummary),
     pagination: normalizePagination(raw?.pagination),
@@ -55,36 +65,36 @@ export function normalizePaginatedList(raw: any): PaginatedAnimeResult {
 }
 
 export function normalizeAnimeDetail(raw: any, idParam: string): AnimeDetail {
-  const d = raw?.data?.details || {};
-  const synopsisParagraphs = d?.synopsis?.paragraphList || (Array.isArray(d?.synopsis) ? d.synopsis : []);
-  const rawGenreList = d?.genreList || raw?.data?.genreList || [];
+  const d = raw?.data?.details || raw?.data || {};
+  const synopsisParagraphs = d?.synopsis?.paragraphList || (Array.isArray(d?.synopsis) ? d.synopsis : [d?.synopsis || d?.overview || 'Deskripsi anime.']);
+  const rawGenreList = d?.genreList || raw?.data?.genreList || d?.genres || [];
   const genreList = rawGenreList.map((g: any) => ({
-    title: g?.title || '',
-    genreId: g?.genreId || '',
+    title: typeof g === 'string' ? g : g?.title || g?.name || '',
+    genreId: typeof g === 'string' ? g : g?.genreId || g?.id || '',
   }));
 
-  const rawEpisodeList = d?.episodeList || raw?.data?.episodeList || [];
+  const rawEpisodeList = d?.episodeList || raw?.data?.episodeList || d?.episodes || [];
   const episodeList = rawEpisodeList.map((ep: any) => ({
-    title: ep?.title ? (ep.title.toLowerCase().startsWith('episode') ? ep.title : `Episode ${ep.title}`) : 'Episode',
-    episodeId: ep?.episodeId || '',
+    title: ep?.title ? (String(ep.title).toLowerCase().startsWith('episode') ? ep.title : `Episode ${ep.title}`) : 'Episode',
+    episodeId: ep?.episodeId || ep?.id || '',
   }));
 
   const rawBatch = d?.batch || raw?.data?.batch;
 
   return {
     id: idParam,
-    title: d?.title || 'Unknown Anime',
-    japanese: d?.japanese || undefined,
-    score: d?.score || undefined,
+    title: d?.title || d?.name || 'Unknown Anime',
+    japanese: d?.japanese || d?.japaneseTitle || undefined,
+    score: d?.score || (d?.vote_average ? d.vote_average.toFixed(1) : undefined),
     producers: d?.producers || undefined,
-    type: d?.type || undefined,
-    status: d?.status || undefined,
-    episodes: d?.episodes || undefined,
+    type: d?.type || 'TV',
+    status: d?.status || 'Ongoing',
+    episodes: d?.episodes ? String(d.episodes) : undefined,
     duration: d?.duration || undefined,
     aired: d?.aired || undefined,
     studios: d?.studios || undefined,
-    poster: d?.poster || '/placeholder.png',
-    synopsis: Array.isArray(synopsisParagraphs) ? synopsisParagraphs : [],
+    poster: d?.poster || (d?.poster_path ? `https://image.tmdb.org/t/p/w500${d.poster_path}` : '/placeholder.png'),
+    synopsis: Array.isArray(synopsisParagraphs) ? synopsisParagraphs : [String(synopsisParagraphs)],
     genres: genreList,
     episodeList,
     batch: rawBatch
@@ -132,7 +142,7 @@ export function normalizeServerStream(raw: any, serverId: string): StreamSource 
   const streamUrl = raw?.data?.details?.url || raw?.data?.url || '';
   return {
     url: streamUrl,
-    isIframe: true, // Wajik Otakudesu server URLs are iframe embeds
+    isIframe: true,
     serverId,
   };
 }
