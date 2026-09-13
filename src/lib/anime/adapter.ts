@@ -6,6 +6,7 @@ import {
   QualityGroup,
   Pagination,
   StreamSource,
+  ServerOption,
 } from './types';
 
 export function normalizeAnimeSummary(item: any): AnimeSummary {
@@ -225,96 +226,98 @@ export function normalizeEpisodeDetail(raw: any, epIdParam: string): EpisodeDeta
   const serverContainer = d?.server || {};
   const qualityListRaw = serverContainer?.qualityList || [];
 
-  let qualities: QualityGroup[] = [];
+  const qualityMap = new Map<string, { quality: string; servers: ServerOption[] }>();
 
+  const formatQualityLabel = (rawQ: string): string => {
+    let q = (rawQ || '').replace(/Mirror/i, '').trim();
+    if (q === '1080p') return '1080p Full HD';
+    if (q === '720p') return '720p HD';
+    if (q === '480p') return '480p SD';
+    if (q === '360p') return '360p Low Data';
+    return q || '720p HD';
+  };
+
+  // 1. Process serverContainer.qualityList (Otakudesu style)
   if (Array.isArray(qualityListRaw) && qualityListRaw.length > 0) {
-    qualities = qualityListRaw.map((qGroup: any) => {
-      const rawQualityTitle = qGroup?.title || '';
-      let cleanQuality = rawQualityTitle.replace(/Mirror/i, '').trim();
-      if (cleanQuality === '1080p') cleanQuality = '1080p Full HD';
-      else if (cleanQuality === '720p') cleanQuality = '720p HD';
-      else if (cleanQuality === '480p') cleanQuality = '480p SD';
-      else if (cleanQuality === '360p') cleanQuality = '360p Low Data';
-      else if (!cleanQuality) cleanQuality = '720p HD';
+    qualityListRaw.forEach((qGroup: any) => {
+      const qLabel = formatQualityLabel(qGroup?.title || '');
+      const existing = qualityMap.get(qLabel) || { quality: qLabel, servers: [] };
 
-      const servers = (qGroup?.serverList || []).map((srv: any, index: number) => {
-        const srvTitle = srv?.title || 'Wajik Player';
-        return {
-          title: `Server ${index + 1} (${srvTitle})`,
-          serverId: srv?.serverId || srv?.url || defaultStream,
-        };
+      (qGroup?.serverList || []).forEach((srv: any, idx: number) => {
+        const srvTitle = srv?.title || `Server ${idx + 1}`;
+        const srvId = srv?.serverId || srv?.url || defaultStream;
+        if (srvId && !existing.servers.some((s) => s.serverId === srvId)) {
+          existing.servers.push({
+            title: `Server ${existing.servers.length + 1} (${srvTitle})`,
+            serverId: srvId,
+          });
+        }
       });
-      return {
-        quality: cleanQuality,
-        servers,
-      };
+
+      if (existing.servers.length > 0) {
+        qualityMap.set(qLabel, existing);
+      }
     });
-  } else if (Array.isArray(d?.download) && d.download.length > 0) {
-    const mp4Group = d.download.find((item: any) => item.title === 'mp4') || d.download[0];
-    if (Array.isArray(mp4Group?.qualityList)) {
-      qualities = mp4Group.qualityList
-        .filter((q: any) => Array.isArray(q?.urlList) && q.urlList.length > 0)
-        .map((qGroup: any) => {
-          const rawQ = qGroup?.title || '';
-          let cleanQuality = rawQ;
-          if (cleanQuality === '1080p') cleanQuality = '1080p Full HD';
-          else if (cleanQuality === '720p') cleanQuality = '720p HD';
-          else if (cleanQuality === '480p') cleanQuality = '480p SD';
-          else if (cleanQuality === '360p') cleanQuality = '360p Low Data';
+  }
 
-          const servers = qGroup.urlList.map((srv: any, idx: number) => ({
-            title: `Server ${idx + 1} (${srv.title || 'Mirror'})`,
-            serverId: srv.url || defaultStream,
-          }));
+  // 2. Process d.download (Oploverz style)
+  if (Array.isArray(d?.download) && d.download.length > 0) {
+    d.download.forEach((downloadGroup: any) => {
+      const formatTitle = (downloadGroup?.title || '').toUpperCase();
+      if (Array.isArray(downloadGroup?.qualityList)) {
+        downloadGroup.qualityList.forEach((qGroup: any) => {
+          if (!Array.isArray(qGroup?.urlList) || qGroup.urlList.length === 0) return;
 
-          return {
-            quality: cleanQuality,
-            servers,
-          };
+          const qLabel = formatQualityLabel(qGroup?.title || '');
+          const existing = qualityMap.get(qLabel) || { quality: qLabel, servers: [] };
+
+          qGroup.urlList.forEach((srv: any) => {
+            const srvTitle = srv?.title || 'Mirror';
+            const srvId = srv?.url || defaultStream;
+            if (srvId && !existing.servers.some((s) => s.serverId === srvId)) {
+              existing.servers.push({
+                title: `${srvTitle} (${formatTitle})`,
+                serverId: srvId,
+              });
+            }
+          });
+
+          if (existing.servers.length > 0) {
+            qualityMap.set(qLabel, existing);
+          }
         });
-    }
+      }
+    });
   }
 
-  if (qualities.length === 0 || !qualities.some((q) => q.servers && q.servers.length > 0)) {
-    qualities = [
-      {
-        quality: '1080p Full HD',
-        servers: [
-          {
-            title: 'Server 1 (Wajik API Ultra HD)',
-            serverId: defaultStream,
-          },
-        ],
-      },
-      {
-        quality: '720p HD',
-        servers: [
-          {
-            title: 'Server 1 (Wajik API 720p HD)',
-            serverId: defaultStream,
-          },
-        ],
-      },
-      {
-        quality: '480p SD',
-        servers: [
-          {
-            title: 'Server 1 (Wajik API 480p SD)',
-            serverId: defaultStream,
-          },
-        ],
-      },
-      {
-        quality: '360p Low Data',
-        servers: [
-          {
-            title: 'Server 1 (Wajik API 360p Low Data)',
-            serverId: defaultStream,
-          },
-        ],
-      },
-    ];
+  // Ensure defaultStream is included as Primary Stream for each quality group
+  if (defaultStream) {
+    const defaultQualities = ['1080p Full HD', '720p HD', '480p SD', '360p Low Data'];
+    defaultQualities.forEach((qLabel) => {
+      if (!qualityMap.has(qLabel)) {
+        qualityMap.set(qLabel, {
+          quality: qLabel,
+          servers: [{ title: 'Server Utama (Akira Player)', serverId: defaultStream }],
+        });
+      } else {
+        const group = qualityMap.get(qLabel)!;
+        if (!group.servers.some((s) => s.serverId === defaultStream)) {
+          group.servers.unshift({ title: 'Server Utama (Akira Player)', serverId: defaultStream });
+        }
+      }
+    });
   }
+
+  // Sort qualities in descending order: 1080p, 720p, 480p, 360p
+  const qualityOrder = ['1080p Full HD', '720p HD', '480p SD', '360p Low Data'];
+  const qualities: QualityGroup[] = Array.from(qualityMap.values()).sort((a, b) => {
+    const idxA = qualityOrder.indexOf(a.quality);
+    const idxB = qualityOrder.indexOf(b.quality);
+    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+    if (idxA !== -1) return -1;
+    if (idxB !== -1) return 1;
+    return a.quality.localeCompare(b.quality);
+  });
 
 
   return {
