@@ -186,63 +186,88 @@ export function normalizeEpisodeDetail(raw: any, epIdParam: string): EpisodeDeta
   const serverContainer = d?.server || {};
   const qualityListRaw = serverContainer?.qualityList || [];
 
-  let qualities: QualityGroup[] = qualityListRaw.map((qGroup: any) => {
-    const rawQualityTitle = qGroup?.title || '';
-    const cleanQuality = rawQualityTitle.replace('Mirror', '').trim();
-    const servers = (qGroup?.serverList || []).map((srv: any) => ({
-      title: srv?.title || 'Default Server',
-      serverId: srv?.serverId || srv?.url || defaultStream,
-    }));
-    return {
-      quality: cleanQuality,
-      servers,
-    };
-  });
+  let qualities: QualityGroup[] = [];
+
+  if (Array.isArray(qualityListRaw) && qualityListRaw.length > 0) {
+    qualities = qualityListRaw.map((qGroup: any) => {
+      const rawQualityTitle = qGroup?.title || '';
+      let cleanQuality = rawQualityTitle.replace(/Mirror/i, '').trim();
+      if (cleanQuality === '1080p') cleanQuality = '1080p Full HD';
+      else if (cleanQuality === '720p') cleanQuality = '720p HD';
+      else if (cleanQuality === '480p') cleanQuality = '480p SD';
+      else if (cleanQuality === '360p') cleanQuality = '360p Low Data';
+      else if (!cleanQuality) cleanQuality = '720p HD';
+
+      const servers = (qGroup?.serverList || []).map((srv: any) => ({
+        title: srv?.title || 'Wajik API Server',
+        serverId: srv?.serverId || srv?.url || defaultStream,
+      }));
+      return {
+        quality: cleanQuality,
+        servers,
+      };
+    });
+  }
 
   if (qualities.length === 0 || !qualities.some((q) => q.servers && q.servers.length > 0)) {
     const tmdbId = getTmdbId(epIdParam);
     const epMatch = epIdParam.match(/(?:ep|episode|op)[-_]?(\d+)/i);
     const epNum = epMatch ? epMatch[1] : '1';
 
-    const serverList = [
-      {
-        title: 'Server 1 (Wajik API Sub Indo 🇯🇵)',
-        serverId: defaultStream || `https://vidsrc.me/embed/anime?tmdb=${tmdbId}&season=1&episode=${epNum}`,
-      },
-      {
-        title: 'Server 2 (VidSrc Anime - Audio Asli 🇯🇵)',
-        serverId: `https://vidsrc.me/embed/anime?tmdb=${tmdbId}&season=1&episode=${epNum}`,
-      },
-      {
-        title: 'Server 3 (VidSrc.pm Anime - Audio Asli 🇯🇵)',
-        serverId: `https://vidsrc.pm/embed/anime/${tmdbId}/1/${epNum}`,
-      },
-      {
-        title: 'Server 4 (2Embed Skin HD)',
-        serverId: `https://2embed.skin/embedtv/${tmdbId}&s=1&e=${epNum}`,
-      },
-      {
-        title: 'Server 5 (AutoEmbed HD)',
-        serverId: `https://autoembed.co/tv/tmdb/${tmdbId}-1-${epNum}`,
-      },
-    ];
-
     qualities = [
       {
-        quality: 'HD 1080p / 720p (Multi Server Sub Indo & Original)',
-        servers: serverList,
+        quality: '1080p Full HD',
+        servers: [
+          {
+            title: 'Server 1 (Wajik API Ultra HD Sub Indo 🇯🇵)',
+            serverId: defaultStream || `https://vidsrc.me/embed/anime?tmdb=${tmdbId}&season=1&episode=${epNum}`,
+          },
+          {
+            title: 'Server 2 (VidSrc 1080p - Audio Asli 🇯🇵)',
+            serverId: `https://vidsrc.me/embed/anime?tmdb=${tmdbId}&season=1&episode=${epNum}`,
+          },
+          {
+            title: 'Server 3 (2Embed Skin 1080p)',
+            serverId: `https://2embed.skin/embedtv/${tmdbId}&s=1&e=${epNum}`,
+          },
+        ],
+      },
+      {
+        quality: '720p HD',
+        servers: [
+          {
+            title: 'Server 1 (Wajik API 720p Sub Indo 🇯🇵)',
+            serverId: defaultStream || `https://vidsrc.pm/embed/anime/${tmdbId}/1/${epNum}`,
+          },
+          {
+            title: 'Server 2 (VidSrc.pm 720p - Audio Asli 🇯🇵)',
+            serverId: `https://vidsrc.pm/embed/anime/${tmdbId}/1/${epNum}`,
+          },
+          {
+            title: 'Server 3 (AutoEmbed 720p)',
+            serverId: `https://autoembed.co/tv/tmdb/${tmdbId}-1-${epNum}`,
+          },
+        ],
+      },
+      {
+        quality: '480p SD',
+        servers: [
+          {
+            title: 'Server 1 (Wajik API Fast 480p Sub Indo 🇯🇵)',
+            serverId: defaultStream || `https://vidsrc.me/embed/anime?tmdb=${tmdbId}&season=1&episode=${epNum}`,
+          },
+        ],
+      },
+      {
+        quality: '360p Low Data',
+        servers: [
+          {
+            title: 'Server 1 (Wajik API Hemat Kuota 360p 🇯🇵)',
+            serverId: defaultStream || `https://vidsrc.me/embed/anime?tmdb=${tmdbId}&season=1&episode=${epNum}`,
+          },
+        ],
       },
     ];
-  } else {
-    const firstGroup = qualities[0];
-    if (firstGroup && firstGroup.servers.length > 0 && defaultStream) {
-      if (!firstGroup.servers.some((s) => s.title.includes('Wajik') || s.title.includes('Server 1'))) {
-        firstGroup.servers.unshift({
-          title: 'Server 1 (Wajik API Sub Indo 🇯🇵)',
-          serverId: defaultStream,
-        });
-      }
-    }
   }
 
   return {
