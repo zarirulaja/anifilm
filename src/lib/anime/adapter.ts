@@ -249,6 +249,30 @@ export function normalizeEpisodeDetail(raw: any, epIdParam: string): EpisodeDeta
         servers,
       };
     });
+  } else if (Array.isArray(d?.download) && d.download.length > 0) {
+    const mp4Group = d.download.find((item: any) => item.title === 'mp4') || d.download[0];
+    if (Array.isArray(mp4Group?.qualityList)) {
+      qualities = mp4Group.qualityList
+        .filter((q: any) => Array.isArray(q?.urlList) && q.urlList.length > 0)
+        .map((qGroup: any) => {
+          const rawQ = qGroup?.title || '';
+          let cleanQuality = rawQ;
+          if (cleanQuality === '1080p') cleanQuality = '1080p Full HD';
+          else if (cleanQuality === '720p') cleanQuality = '720p HD';
+          else if (cleanQuality === '480p') cleanQuality = '480p SD';
+          else if (cleanQuality === '360p') cleanQuality = '360p Low Data';
+
+          const servers = qGroup.urlList.map((srv: any, idx: number) => ({
+            title: `Server ${idx + 1} (${srv.title || 'Mirror'})`,
+            serverId: srv.url || defaultStream,
+          }));
+
+          return {
+            quality: cleanQuality,
+            servers,
+          };
+        });
+    }
   }
 
   if (qualities.length === 0 || !qualities.some((q) => q.servers && q.servers.length > 0)) {
