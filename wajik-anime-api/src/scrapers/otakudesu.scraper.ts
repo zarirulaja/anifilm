@@ -1,5 +1,5 @@
 import otakudesuConfig from "@configs/otakudesu.config.js";
-import getHTML from "@helpers/getHTML.js";
+import getHTML, { userAgent } from "@helpers/getHTML.js";
 import { parse, type HTMLElement } from "node-html-parser";
 
 const { baseUrl } = otakudesuConfig;
@@ -15,36 +15,47 @@ const otakudesuScraper = {
   },
 
   async scrapeNonce(body: string, referer: string): Promise<{ data?: string }> {
-    const nonceResponse = await fetch(new URL("/wp-admin/admin-ajax.php", baseUrl), {
-      method: "POST",
-      body,
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-        Referer: referer,
-        Origin: baseUrl,
-      },
-    });
+    try {
+      const nonceResponse = await fetch(new URL("/wp-admin/admin-ajax.php", baseUrl), {
+        method: "POST",
+        body,
+        headers: {
+          "User-Agent": userAgent,
+          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+          Referer: referer,
+          Origin: baseUrl,
+        },
+      });
 
-    const nonce = (await nonceResponse.json()) as { data: string };
-
-    return nonce;
+      if (!nonceResponse.ok) return { data: "" };
+      const nonce = (await nonceResponse.json()) as { data: string };
+      return nonce;
+    } catch {
+      return { data: "" };
+    }
   },
 
   async scrapeServer(body: string, referer: string): Promise<{ data?: string }> {
-    const serverResponse = await fetch(new URL("/wp-admin/admin-ajax.php", baseUrl), {
-      method: "POST",
-      body,
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-        Origin: baseUrl,
-        Referer: referer,
-      },
-    });
+    try {
+      const serverResponse = await fetch(new URL("/wp-admin/admin-ajax.php", baseUrl), {
+        method: "POST",
+        body,
+        headers: {
+          "User-Agent": userAgent,
+          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+          Origin: baseUrl,
+          Referer: referer,
+        },
+      });
 
-    const server = (await serverResponse.json()) as { data: string };
-
-    return server;
+      if (!serverResponse.ok) return { data: "" };
+      const server = (await serverResponse.json()) as { data: string };
+      return server;
+    } catch {
+      return { data: "" };
+    }
   },
 };
 
 export default otakudesuScraper;
+

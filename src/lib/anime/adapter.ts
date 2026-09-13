@@ -198,10 +198,13 @@ export function normalizeEpisodeDetail(raw: any, epIdParam: string): EpisodeDeta
       else if (cleanQuality === '360p') cleanQuality = '360p Low Data';
       else if (!cleanQuality) cleanQuality = '720p HD';
 
-      const servers = (qGroup?.serverList || []).map((srv: any) => ({
-        title: srv?.title || 'Wajik API Server',
-        serverId: srv?.serverId || srv?.url || defaultStream,
-      }));
+      const servers = (qGroup?.serverList || []).map((srv: any, index: number) => {
+        const srvTitle = srv?.title || 'Wajik Player';
+        return {
+          title: `Server ${index + 1} (${srvTitle})`,
+          serverId: srv?.serverId || srv?.url || defaultStream,
+        };
+      });
       return {
         quality: cleanQuality,
         servers,
@@ -210,25 +213,13 @@ export function normalizeEpisodeDetail(raw: any, epIdParam: string): EpisodeDeta
   }
 
   if (qualities.length === 0 || !qualities.some((q) => q.servers && q.servers.length > 0)) {
-    const tmdbId = getTmdbId(epIdParam);
-    const epMatch = epIdParam.match(/(?:ep|episode|op)[-_]?(\d+)/i);
-    const epNum = epMatch ? epMatch[1] : '1';
-
     qualities = [
       {
         quality: '1080p Full HD',
         servers: [
           {
-            title: 'Server 1 (Wajik API Ultra HD Sub Indo 🇯🇵)',
-            serverId: defaultStream || `https://vidsrc.me/embed/anime?tmdb=${tmdbId}&season=1&episode=${epNum}`,
-          },
-          {
-            title: 'Server 2 (VidSrc 1080p - Audio Asli 🇯🇵)',
-            serverId: `https://vidsrc.me/embed/anime?tmdb=${tmdbId}&season=1&episode=${epNum}`,
-          },
-          {
-            title: 'Server 3 (2Embed Skin 1080p)',
-            serverId: `https://2embed.skin/embedtv/${tmdbId}&s=1&e=${epNum}`,
+            title: 'Server 1 (Wajik API Ultra HD)',
+            serverId: defaultStream,
           },
         ],
       },
@@ -236,16 +227,8 @@ export function normalizeEpisodeDetail(raw: any, epIdParam: string): EpisodeDeta
         quality: '720p HD',
         servers: [
           {
-            title: 'Server 1 (Wajik API 720p Sub Indo 🇯🇵)',
-            serverId: defaultStream || `https://vidsrc.pm/embed/anime/${tmdbId}/1/${epNum}`,
-          },
-          {
-            title: 'Server 2 (VidSrc.pm 720p - Audio Asli 🇯🇵)',
-            serverId: `https://vidsrc.pm/embed/anime/${tmdbId}/1/${epNum}`,
-          },
-          {
-            title: 'Server 3 (AutoEmbed 720p)',
-            serverId: `https://autoembed.co/tv/tmdb/${tmdbId}-1-${epNum}`,
+            title: 'Server 1 (Wajik API 720p HD)',
+            serverId: defaultStream,
           },
         ],
       },
@@ -253,8 +236,8 @@ export function normalizeEpisodeDetail(raw: any, epIdParam: string): EpisodeDeta
         quality: '480p SD',
         servers: [
           {
-            title: 'Server 1 (Wajik API Fast 480p Sub Indo 🇯🇵)',
-            serverId: defaultStream || `https://vidsrc.me/embed/anime?tmdb=${tmdbId}&season=1&episode=${epNum}`,
+            title: 'Server 1 (Wajik API 480p SD)',
+            serverId: defaultStream,
           },
         ],
       },
@@ -262,13 +245,14 @@ export function normalizeEpisodeDetail(raw: any, epIdParam: string): EpisodeDeta
         quality: '360p Low Data',
         servers: [
           {
-            title: 'Server 1 (Wajik API Hemat Kuota 360p 🇯🇵)',
-            serverId: defaultStream || `https://vidsrc.me/embed/anime?tmdb=${tmdbId}&season=1&episode=${epNum}`,
+            title: 'Server 1 (Wajik API 360p Low Data)',
+            serverId: defaultStream,
           },
         ],
       },
     ];
   }
+
 
   return {
     id: epIdParam,
