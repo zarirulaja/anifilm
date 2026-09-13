@@ -394,11 +394,17 @@ const otakudesuParser = {
     });
 
     const nonce = await otakudesuScraper.scrapeNonce(nonceBody.toString(), url);
-    const serverElems = document.querySelectorAll(".mirrorstream > ul");
+    const serverElems = document.querySelectorAll(
+      ".mirrorstream > ul, .mirrorstream ul, ul.m360p, ul.m480p, ul.m720p, ul.m1080p, ul[class*='m360'], ul[class*='m480'], ul[class*='m720'], ul[class*='m1080']"
+    );
     const server: IFormat = {
       title: "Server",
       qualityList: serverElems.map((serverEl) => {
-        const title = serverEl.querySelector("li")?.previousSibling?.text || "";
+        const rawClass = serverEl.getAttribute("class") || "";
+        const title =
+          rawClass.replace(/^m/, "").trim() ||
+          serverEl.querySelector("li")?.previousSibling?.text?.trim() ||
+          "";
         const serverElems = serverEl.querySelectorAll("li a[data-content]");
         const serverList: IServer[] = serverElems.map((serverEl) => {
           const title = Text(serverEl);
