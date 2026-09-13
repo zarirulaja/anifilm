@@ -394,9 +394,9 @@ export async function fetchWajikAnimeDetail(animeId: string) {
 
     const epMatches: any[] = [];
     const epRegex = /href="https:\/\/otakudesu\.[a-z]+\/episode\/([^\/"]+)\/?"[^>]*>([^<]+)/gi;
-    let m;
+    let m: RegExpExecArray | null;
     while ((m = epRegex.exec(html)) !== null) {
-      if (!epMatches.some(e => e.episodeId === m[1])) {
+      if (!epMatches.some(e => e.episodeId === m![1])) {
         epMatches.push({
           episodeId: m[1],
           title: m[2].replace(/&#8211;/g, '-').replace(/&amp;/g, '&').trim(),
