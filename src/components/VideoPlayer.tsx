@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Pause, Maximize, ExternalLink, RotateCcw, ChevronRight, Subtitles, Clock, RefreshCw } from 'lucide-react';
+import { Play, Pause, Maximize, ExternalLink, RotateCcw, ChevronRight, Subtitles, Clock, Volume2, Globe } from 'lucide-react';
 import { formatDuration } from '@/lib/utils/time';
 import { useToast } from '@/components/ui/Toast';
 
@@ -37,7 +37,6 @@ export default function VideoPlayer({
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [isFullscreen, setIsFullscreen] = useState(false);
   const [showResumePrompt, setShowResumePrompt] = useState(initialProgress > 10);
   const [isEnded, setIsEnded] = useState(false);
 
@@ -110,10 +109,8 @@ export default function VideoPlayer({
     if (!playerContainerRef.current) return;
     if (!document.fullscreenElement) {
       playerContainerRef.current.requestFullscreen().catch(console.error);
-      setIsFullscreen(true);
     } else {
       document.exitFullscreen().catch(console.error);
-      setIsFullscreen(false);
     }
   };
 
@@ -199,8 +196,8 @@ export default function VideoPlayer({
         {/* Video Overlay Info Header */}
         <div className="absolute top-4 left-4 right-4 flex items-center justify-between pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300">
           <div className="flex items-center gap-2 bg-slate-950/80 px-3 py-1.5 rounded-xl border border-slate-800 backdrop-blur-md">
-            <Subtitles className="w-4 h-4 text-emerald-400" />
-            <span className="text-xs font-semibold text-slate-200">🇮🇩 Subtitle / Audio Track Available</span>
+            <Volume2 className="w-4 h-4 text-emerald-400" />
+            <span className="text-xs font-semibold text-slate-200">🇯🇵 Audio Jepang (Subbed) Available</span>
           </div>
 
           <button
@@ -248,36 +245,52 @@ export default function VideoPlayer({
         )}
       </div>
 
-      {/* Subtitle & Server Emergency Bar */}
+      {/* Subtitle & Audio Track Switching Instructions Panel */}
       <div className="space-y-3">
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 text-xs text-slate-300 shadow-lg">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-emerald-950/80 border border-emerald-500/30 text-emerald-400 shrink-0">
-              <Subtitles className="w-5 h-5" />
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="font-extrabold text-white text-sm">Petunjuk Penggunaan Server & Subtitle 🎬</span>
+        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 space-y-3 shadow-xl">
+          <div className="flex items-center justify-between gap-4 border-b border-slate-800 pb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-xl bg-emerald-950 border border-emerald-500/30 text-emerald-400">
+                <Globe className="w-5 h-5" />
               </div>
-              <p className="text-slate-400 text-xs leading-relaxed">
-                • <strong>Server 1 (VidSrc)</strong> dan <strong>Server 2 (AutoEmbed)</strong> aktif 100% bebas blokir ISP Internet Sehat di Indonesia.<br/>
-                • <strong>Mengubah Audio / Subtitle</strong>: Klik ikon <strong>CC</strong> atau <strong>Settings (⚙️)</strong> di pojok kanan bawah player video untuk memilih audio Jepang atau subtitle.<br/>
-                • Jika player mengalami gangguan pada ISP Anda, silakan klik server lain di bawah atau gunakan tombol <strong>Buka Video di Tab Baru</strong>.
+              <div>
+                <h4 className="font-extrabold text-white text-sm">Cara Mengubah Voice ke Bahasa Jepang 🇯🇵</h4>
+                <p className="text-slate-400 text-xs">Jika audio terputar dalam bahasa Inggris (Dubbed), ikuti 2 langkah mudah berikut:</p>
+              </div>
+            </div>
+
+            {streamUrl && (
+              <a
+                href={streamUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs border border-slate-700/60 shadow-md transition-all hover:scale-105"
+              >
+                <ExternalLink className="w-3.5 h-3.5 text-red-400" />
+                <span>Buka di Tab Baru</span>
+              </a>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-slate-300">
+            <div className="bg-slate-950/60 p-3.5 rounded-xl border border-slate-800/80 space-y-1">
+              <div className="font-bold text-emerald-400 flex items-center gap-1.5">
+                <span>1. Server 1 (VidSrc HD)</span>
+              </div>
+              <p className="text-slate-400 text-[11px] leading-relaxed">
+                Di bagian atas / bawah layar player video, klik tombol <strong>SUB</strong> (bukan DUB) atau klik tombol <strong>CC / Settings (⚙️)</strong> ➡️ pilih <strong>Japanese Audio / Subtitles</strong>.
+              </p>
+            </div>
+
+            <div className="bg-slate-950/60 p-3.5 rounded-xl border border-slate-800/80 space-y-1">
+              <div className="font-bold text-indigo-400 flex items-center gap-1.5">
+                <span>2. Server 2 (AutoEmbed HD)</span>
+              </div>
+              <p className="text-slate-400 text-[11px] leading-relaxed">
+                Di pojok kanan atas player video, klik menu server (cth: <strong>MegaCloud / UpCloud</strong>) lalu pilih opsi <strong>Subbed / Sub Indo</strong>.
               </p>
             </div>
           </div>
-
-          {streamUrl && (
-            <a
-              href={streamUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs flex items-center gap-2 shrink-0 border border-slate-700/60 shadow-md transition-all hover:scale-105"
-            >
-              <ExternalLink className="w-3.5 h-3.5 text-red-400" />
-              <span>Buka Video di Tab Baru</span>
-            </a>
-          )}
         </div>
       </div>
     </div>
