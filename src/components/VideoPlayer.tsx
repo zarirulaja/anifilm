@@ -123,8 +123,38 @@ export default function VideoPlayer({
     showToast(`Melanjutkan tayangan dari ${formatDuration(initialProgress)}`, 'info');
   };
 
+  const isDesustreamOrBlocked = streamUrl ? (streamUrl.includes('desustream') || streamUrl.includes('desu.')) : false;
+
   return (
     <div className="space-y-4">
+      {/* Desustream / Iframe Refused Alert Banner */}
+      {isDesustreamOrBlocked && (
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 rounded-2xl bg-amber-950/80 border border-amber-500/50 text-amber-200 shadow-xl animate-in fade-in">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-amber-900/60 text-amber-400 shrink-0">
+              <ExternalLink className="w-5 h-5" />
+            </div>
+            <div className="text-xs sm:text-sm">
+              <p className="font-bold text-amber-300">Server Desustream Menolak Embedding (Iframe Blocked)</p>
+              <p className="text-amber-200/80 text-xs">
+                Penyedia video <code className="bg-amber-900/50 px-1 rounded">desustream.net</code> melarang pemutaran langsung di dalam website (X-Frame-Options). Silakan klik <strong>Buka di Tab Baru</strong> atau pilih server mirror lain di bawah.
+              </p>
+            </div>
+          </div>
+          {streamUrl && (
+            <a
+              href={streamUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full sm:w-auto text-center px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md transition-colors shrink-0 flex items-center justify-center gap-1.5"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              <span>Buka di Tab Baru</span>
+            </a>
+          )}
+        </div>
+      )}
+
       {/* Resume Banner if initialProgress exists */}
       {showResumePrompt && (
         <div className="flex items-center justify-between gap-4 p-4 rounded-2xl bg-red-950/80 border border-red-500/40 text-red-200 shadow-xl animate-in fade-in">

@@ -51,7 +51,7 @@ export function normalizeAnimeSummary(item: any): AnimeSummary {
   }
 
   // Clean episode indicators from rawId if it extracted an episode URL
-  if (rawId) {
+  if (rawId && (rawId.includes('-episode-') || rawId.includes('-ep-') || rawId.includes('-op-'))) {
     rawId = rawId
       .replace(/-subtitle-indonesia.*/gi, '')
       .replace(/-(sub|dub)-indo.*/gi, '')

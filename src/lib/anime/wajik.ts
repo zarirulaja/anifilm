@@ -140,6 +140,70 @@ function generateCandidateQueries(animeId: string): { candidateSlugs: string[]; 
   return { candidateSlugs: candidates, searchQueries };
 }
 
+function findBestAnimeMatch(list: any[], candidateSlugs: string[], targetAnimeId: string): any {
+  if (!list || list.length === 0) return null;
+
+  // 1. Exact slug match (animeId or slug)
+  for (const c of candidateSlugs) {
+    if (!c) continue;
+    const exact = list.find((item) => {
+      const s = item.animeId || item.slug || '';
+      return s.toLowerCase() === c.toLowerCase();
+    });
+    if (exact) return exact;
+  }
+
+  // 2. Clean slug exact match (e.g. blelock vs blelock)
+  const targetClean = cleanAnimeSlug(targetAnimeId).toLowerCase();
+  for (const c of candidateSlugs) {
+    if (!c) continue;
+    const cClean = cleanAnimeSlug(c).toLowerCase();
+    const cleanExact = list.find((item) => {
+      const s = item.animeId || item.slug || '';
+      const sClean = cleanAnimeSlug(s).toLowerCase();
+      return sClean === cClean || sClean === targetClean;
+    });
+    if (cleanExact) return cleanExact;
+  }
+
+  // 3. Title-based matching & Season awareness
+  const targetSeasonMatch = targetAnimeId.match(/(?:[-_]s(\d+)|[-_]season[-_](\d+)|\bs(\d+)\b|\bseason (\d+)\b)/i);
+  const targetSeasonNum = targetSeasonMatch ? (targetSeasonMatch[1] || targetSeasonMatch[2] || targetSeasonMatch[3] || targetSeasonMatch[4]) : null;
+
+  // Filter list by season compatibility
+  let filtered = list;
+  if (targetSeasonNum) {
+    // Target specifies a season (e.g. S2) -> match item that also has S2 / Season 2
+    const seasonFiltered = list.filter((item) => {
+      const text = `${item.animeId || ''} ${item.slug || ''} ${item.title || ''}`;
+      const itemSeason = text.match(/(?:[-_]s(\d+)|[-_]season[-_](\d+)|\bs(\d+)\b|\bseason (\d+)\b)/i);
+      const num = itemSeason ? (itemSeason[1] || itemSeason[2] || itemSeason[3] || itemSeason[4]) : null;
+      return num === targetSeasonNum;
+    });
+    if (seasonFiltered.length > 0) filtered = seasonFiltered;
+  } else {
+    // Target does NOT specify a season (Season 1) -> prefer items that do NOT specify Season 2, 3, etc.
+    const nonSeasonFiltered = list.filter((item) => {
+      const text = `${item.animeId || ''} ${item.slug || ''} ${item.title || ''}`;
+      return !/(?:[-_]s\d+|[-_]season[-_]\d+|\bs\d+\b|\bseason \d+\b)/i.test(text);
+    });
+    if (nonSeasonFiltered.length > 0) filtered = nonSeasonFiltered;
+  }
+
+  // From filtered items, find closest title or slug match
+  for (const c of candidateSlugs) {
+    if (!c) continue;
+    const match = filtered.find((item) => {
+      const s = (item.animeId || item.slug || '').toLowerCase();
+      const t = (item.title || '').toLowerCase();
+      return s.includes(c.toLowerCase()) || t.includes(c.replace(/-/g, ' ').toLowerCase());
+    });
+    if (match) return match;
+  }
+
+  return filtered[0] || list[0];
+}
+
 export async function fetchWajikAnimeDetail(animeId: string) {
   const { candidateSlugs, searchQueries } = generateCandidateQueries(animeId);
 
@@ -163,11 +227,7 @@ export async function fetchWajikAnimeDetail(animeId: string) {
       const sRes = await wajikFetch<any>(`/otakudesu/search?q=${encodeURIComponent(q)}`);
       const list = sRes?.data?.animeList || [];
       if (list.length > 0) {
-        const matched = list.find((item: any) => {
-          const itemSlug = item.animeId || item.slug || '';
-          return candidateSlugs.includes(itemSlug) || candidateSlugs.some((c) => itemSlug.includes(c) || c.includes(itemSlug));
-        }) || list[0];
-
+        const matched = findBestAnimeMatch(list, candidateSlugs, animeId);
         const targetSlug = matched?.animeId || matched?.slug;
         if (targetSlug) {
           const detail = await wajikFetch<any>(`/otakudesu/anime/${encodeURIComponent(targetSlug)}`);
@@ -181,11 +241,7 @@ export async function fetchWajikAnimeDetail(animeId: string) {
       const sRes = await wajikFetch<any>(`/oploverz/search?q=${encodeURIComponent(q)}`);
       const list = sRes?.data?.animeList || [];
       if (list.length > 0) {
-        const matched = list.find((item: any) => {
-          const itemSlug = item.slug || item.animeId || '';
-          return candidateSlugs.includes(itemSlug) || candidateSlugs.some((c) => itemSlug.includes(c) || c.includes(itemSlug));
-        }) || list[0];
-
+        const matched = findBestAnimeMatch(list, candidateSlugs, animeId);
         const targetSlug = matched?.slug || matched?.animeId;
         if (targetSlug) {
           const detail = await wajikFetch<any>(`/oploverz/anime/${encodeURIComponent(targetSlug)}`);
@@ -202,16 +258,16 @@ export async function fetchWajikAnimeDetail(animeId: string) {
       const sRes = await wajikFetch<any>(`/oploverz/search?q=${encodeURIComponent(q)}`);
       const list = sRes?.data?.animeList || [];
       if (list.length > 0) {
-        searchSummary = list[0];
-        break;
+        searchSummary = findBestAnimeMatch(list, candidateSlugs, animeId);
+        if (searchSummary) break;
       }
     } catch {}
     try {
       const sRes = await wajikFetch<any>(`/otakudesu/search?q=${encodeURIComponent(q)}`);
       const list = sRes?.data?.animeList || [];
       if (list.length > 0) {
-        searchSummary = list[0];
-        break;
+        searchSummary = findBestAnimeMatch(list, candidateSlugs, animeId);
+        if (searchSummary) break;
       }
     } catch {}
   }
