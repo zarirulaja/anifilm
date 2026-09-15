@@ -61,21 +61,17 @@ export function normalizeMovieDetail(raw: any, idParam: string): MovieDetail {
   const numId = idParam;
   const streamUrls = isSeries
     ? [
-        { provider: 'Server VidSrc TV (Auto Sub Indo)', url: `https://vidsrc.xyz/embed/tv/${numId}/1/1?sub=id` },
-        { provider: 'Server MultiEmbed TV (Multi Sub Indo)', url: `https://multiembed.mov/?video_id=${numId}&tmdb=1&s=1&e=1` },
-        { provider: 'Server VidSrc CC TV (Sub Indo HD)', url: `https://vidsrc.cc/v2/embed/tv/${numId}/1/1?autoPlay=false&sub=id` },
-        { provider: 'Server AutoEmbed TV (HD)', url: `https://player.autoembed.cc/embed/tv/${numId}/1/1` },
-        { provider: 'Server VidLink TV (Ultra HD)', url: `https://vidlink.pro/tv/${numId}/1/1` },
-        { provider: 'Server SmashyStream TV', url: `https://player.smashystream.com/tv/${numId}/1/1` },
+        { provider: 'Server MultiEmbed TV (Auto Sub Indo)', url: `https://multiembed.mov/?video_id=${numId}&tmdb=1&s=1&e=1` },
+        { provider: 'Server VidSrc PM TV (Sub Indo HD)', url: `https://vidsrc.pm/embed/tv/${numId}/1/1?sub=id` },
+        { provider: 'Server VidSrc IN TV (Sub Indo HD)', url: `https://vidsrc.in/embed/tv/${numId}/1/1?sub=id` },
+        { provider: 'Server VidSrc TO TV (Fast HD)', url: `https://vidsrc.to/embed/tv/${numId}/1/1` },
         { provider: 'Server 2Embed TV', url: `https://www.2embed.cc/embedtv/${numId}&s=1&e=1` },
       ]
     : [
-        { provider: 'Server VidSrc VIP (Auto Sub Indo)', url: `https://vidsrc.xyz/embed/movie/${numId}?sub=id` },
-        { provider: 'Server MultiEmbed (Multi Sub Indo)', url: `https://multiembed.mov/?video_id=${numId}&tmdb=1` },
-        { provider: 'Server VidSrc CC (Sub Indo HD)', url: `https://vidsrc.cc/v2/embed/movie/${numId}?autoPlay=false&sub=id` },
-        { provider: 'Server AutoEmbed (HD)', url: `https://player.autoembed.cc/embed/movie/${numId}` },
-        { provider: 'Server VidLink HD', url: `https://vidlink.pro/movie/${numId}` },
-        { provider: 'Server SmashyStream', url: `https://player.smashystream.com/movie/${numId}` },
+        { provider: 'Server MultiEmbed (Auto Sub Indo)', url: `https://multiembed.mov/?video_id=${numId}&tmdb=1` },
+        { provider: 'Server VidSrc PM (Sub Indo HD)', url: `https://vidsrc.pm/embed/movie/${numId}?sub=id` },
+        { provider: 'Server VidSrc IN (Sub Indo HD)', url: `https://vidsrc.in/embed/movie/${numId}?sub=id` },
+        { provider: 'Server VidSrc TO (Fast HD)', url: `https://vidsrc.to/embed/movie/${numId}` },
         { provider: 'Server 2Embed HD', url: `https://www.2embed.cc/embed/${numId}` },
       ];
 
