@@ -57,29 +57,39 @@ export function normalizeMovieDetail(raw: any, idParam: string): MovieDetail {
   const rating = d?.vote_average ? d.vote_average.toFixed(1) : d?.rating ? String(d.rating) : '7.5';
   const duration = d?.runtime ? `${d.runtime} menit` : d?.episode_run_time?.[0] ? `${d.episode_run_time[0]} menit` : d?.duration || '120 menit';
 
-  // Generate multi-server stream embed URLs
+  // Generate multi-server stream embed URLs with priority on Indonesian Subtitles
   const numId = idParam;
   const streamUrls = isSeries
     ? [
-        { provider: 'Server VidLink TV (Sub Indo HD)', url: `https://vidlink.pro/tv/${numId}/1/1` },
-        { provider: 'Server AutoEmbed TV (Sub Indo HD)', url: `https://autoembed.co/tv/tmdb/${numId}-1-1` },
-        { provider: 'Server 2Embed TV HD', url: `https://www.2embed.cc/embedtv/${numId}&s=1&e=1` },
-        { provider: 'Server VidSrc TV HD', url: `https://vidsrc.me/embed/tv/${numId}/1/1` },
+        { provider: 'Server VidSrc TV (Auto Sub Indo)', url: `https://vidsrc.xyz/embed/tv/${numId}/1/1?sub=id` },
+        { provider: 'Server MultiEmbed TV (Multi Sub Indo)', url: `https://multiembed.mov/?video_id=${numId}&tmdb=1&s=1&e=1` },
+        { provider: 'Server VidSrc CC TV (Sub Indo HD)', url: `https://vidsrc.cc/v2/embed/tv/${numId}/1/1?autoPlay=false&sub=id` },
+        { provider: 'Server AutoEmbed TV (HD)', url: `https://player.autoembed.cc/embed/tv/${numId}/1/1` },
+        { provider: 'Server VidLink TV (Ultra HD)', url: `https://vidlink.pro/tv/${numId}/1/1` },
+        { provider: 'Server SmashyStream TV', url: `https://player.smashystream.com/tv/${numId}/1/1` },
+        { provider: 'Server 2Embed TV', url: `https://www.2embed.cc/embedtv/${numId}&s=1&e=1` },
       ]
     : [
-        { provider: 'Server VidLink HD (Sub Indo)', url: `https://vidlink.pro/movie/${numId}` },
-        { provider: 'Server AutoEmbed (Sub Indo HD)', url: `https://autoembed.co/movie/tmdb/${numId}` },
+        { provider: 'Server VidSrc VIP (Auto Sub Indo)', url: `https://vidsrc.xyz/embed/movie/${numId}?sub=id` },
+        { provider: 'Server MultiEmbed (Multi Sub Indo)', url: `https://multiembed.mov/?video_id=${numId}&tmdb=1` },
+        { provider: 'Server VidSrc CC (Sub Indo HD)', url: `https://vidsrc.cc/v2/embed/movie/${numId}?autoPlay=false&sub=id` },
+        { provider: 'Server AutoEmbed (HD)', url: `https://player.autoembed.cc/embed/movie/${numId}` },
+        { provider: 'Server VidLink HD', url: `https://vidlink.pro/movie/${numId}` },
+        { provider: 'Server SmashyStream', url: `https://player.smashystream.com/movie/${numId}` },
         { provider: 'Server 2Embed HD', url: `https://www.2embed.cc/embed/${numId}` },
-        { provider: 'Server VidSrc HD', url: `https://vidsrc.me/embed/movie/${numId}` },
       ];
 
-  // Also include any extra custom streams if provided
+  // Also prioritize and include any extra custom streams from LK21 (hardsub)
   if (Array.isArray(d?.streamUrls)) {
+    const lkStreams: any[] = [];
     d.streamUrls.forEach((s: any) => {
       if (s?.url && !streamUrls.some(existing => existing.url === s.url)) {
-        streamUrls.push({ provider: s.provider || 'Server External', url: s.url });
+        lkStreams.push({ provider: s.provider ? `Server LK21 (${s.provider})` : 'Server LK21 Sub Indo', url: s.url });
       }
     });
+    if (lkStreams.length > 0) {
+      streamUrls.unshift(...lkStreams);
+    }
   }
 
   return {
