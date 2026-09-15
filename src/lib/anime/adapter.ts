@@ -12,9 +12,9 @@ import {
 export function normalizeAnimeSummary(item: any): AnimeSummary {
   let posterUrl = 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=400&q=80';
   if (typeof item?.poster === 'string' && item.poster && !item.poster.includes('undefined')) {
-    posterUrl = item.poster;
+    posterUrl = item.poster.replace(/^http:\/\//i, 'https://');
   } else if (typeof item?.poster_path === 'string' && item.poster_path && item.poster_path !== 'undefined') {
-    posterUrl = item.poster_path.startsWith('http') ? item.poster_path : `https://image.tmdb.org/t/p/w500${item.poster_path}`;
+    posterUrl = item.poster_path.startsWith('http') ? item.poster_path.replace(/^http:\/\//i, 'https://') : `https://image.tmdb.org/t/p/w500${item.poster_path}`;
   }
 
   // Handle Oploverz seriesName format: "One Piece\t\t\t\tOne Piece Episode..."

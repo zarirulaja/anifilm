@@ -22,14 +22,23 @@ export function serverCache(ttl?: number) {
 
 
 
-    const cachedData = lruCache.get(key);
+    if (req.query.nocache) {
+      lruCache.delete(key);
+    } else {
+      const cachedData = lruCache.get(key) as any;
+      if (cachedData) {
+        const ongoingLen = cachedData?.data?.ongoing?.animeList?.length || 0;
+        const completedLen = cachedData?.data?.completed?.animeList?.length || 0;
+        const listLen = Array.isArray(cachedData?.data?.animeList) ? cachedData.data.animeList.length : -1;
+        const isCachedEmpty = (ongoingLen === 0 && completedLen === 0) || listLen === 0;
 
-    if (cachedData) {
-      // console.log("hit");
-
-      res.json(cachedData);
-
-      return;
+        if (!isCachedEmpty) {
+          res.json(cachedData);
+          return;
+        } else {
+          lruCache.delete(key);
+        }
+      }
     }
 
     // console.log("miss");
@@ -60,7 +69,7 @@ export function serverCache(ttl?: number) {
  */
 export function clientCache(maxAge?: number) {
   return (req: Request, res: Response, next: NextFunction) => {
-    res.setHeader("Cache-Control", `public, max-age=${maxAge ? maxAge * 60 : 60}`);
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
 
     next();
   };

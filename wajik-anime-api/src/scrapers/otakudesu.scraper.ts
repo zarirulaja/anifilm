@@ -2,6 +2,7 @@ import getHTML, { userAgent } from "@helpers/getHTML.js";
 import { parse, type HTMLElement } from "node-html-parser";
 
 const DOMAINS = [
+  "https://misty-voice-c249.izzaahmad73.workers.dev",
   "https://otakudesu.blog",
   "https://otakudesu.cloud",
   "https://otakudesu.io",
@@ -14,7 +15,10 @@ const otakudesuScraper = {
       try {
         const html = await getHTML(domain, pathname, ref, sanitize);
         const document = parse(html, { parseNoneClosedTags: true });
-        if (document && document.querySelector("h1, .infozingle, .venutama, ul")) {
+        const isOtakudesu = Boolean(
+          document.querySelector(".venutama, .venz, .infozingle, .bariskelom, .chivsrc, .flir, .download, .kglist321")
+        );
+        if (document && isOtakudesu) {
           return document;
         }
       } catch (err: any) {
