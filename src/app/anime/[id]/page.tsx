@@ -120,7 +120,7 @@ export default function AnimeDetailPage({ params }: { params: { id: string } }) 
       <div className="relative w-full rounded-3xl overflow-hidden bg-slate-900 border border-slate-800 p-6 sm:p-10 shadow-2xl">
         {/* Backdrop image */}
         <div className="absolute inset-0 z-0 opacity-20">
-          <img src={anime.poster} alt={anime.title} className="w-full h-full object-cover filter blur-2xl scale-125" />
+          <img src={anime.banner || anime.poster} alt={anime.title} className="w-full h-full object-cover filter blur-xl scale-110" />
           <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/80 to-transparent" />
         </div>
 
@@ -233,12 +233,31 @@ export default function AnimeDetailPage({ params }: { params: { id: string } }) 
 
       {/* Synopsis Section */}
       {anime.synopsis.length > 0 && (
-        <div className="bg-slate-900/60 p-6 rounded-3xl border border-slate-800 space-y-3">
+        <div className="bg-slate-900/60 p-6 rounded-3xl border border-slate-800 space-y-3 shadow-xl">
           <h2 className="text-lg font-bold text-white">Sinopsis</h2>
           <div className="text-sm text-slate-300 leading-relaxed space-y-3">
             {anime.synopsis.map((para, idx) => (
               <p key={idx}>{para}</p>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Official YouTube Trailer Section */}
+      {anime.trailerUrl && (
+        <div className="bg-slate-900/60 p-6 rounded-3xl border border-slate-800 space-y-4 shadow-xl">
+          <div className="flex items-center gap-2 text-white font-bold text-lg">
+            <Film className="w-5 h-5 text-red-500" />
+            <h2>Trailer Resmi (Official Preview)</h2>
+          </div>
+          <div className="relative aspect-video w-full rounded-2xl overflow-hidden bg-black border border-slate-800 shadow-2xl">
+            <iframe
+              src={anime.trailerUrl}
+              title={`${anime.title} Trailer`}
+              className="w-full h-full border-0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
           </div>
         </div>
       )}

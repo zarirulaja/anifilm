@@ -2,8 +2,8 @@ import getHTML, { userAgent } from "@helpers/getHTML.js";
 import { parse, type HTMLElement } from "node-html-parser";
 
 const DOMAINS = [
-  "https://otakudesu.cloud",
   "https://otakudesu.blog",
+  "https://otakudesu.cloud",
   "https://otakudesu.io",
 ];
 

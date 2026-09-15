@@ -184,6 +184,8 @@ export function normalizeAnimeDetail(raw: any, idParam: string): AnimeDetail {
     aired: d?.aired || undefined,
     studios: d?.studios || undefined,
     poster: d?.poster || (d?.poster_path ? `https://image.tmdb.org/t/p/w500${d.poster_path}` : '/placeholder.png'),
+    banner: d?.banner || d?.bannerImage || undefined,
+    trailerUrl: d?.trailerUrl || d?.trailer || undefined,
     synopsis: Array.isArray(synopsisParagraphs) ? synopsisParagraphs : [String(synopsisParagraphs)],
     genres: genreList,
     episodeList,

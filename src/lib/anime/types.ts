@@ -51,6 +51,8 @@ export interface AnimeDetail {
   aired?: string;
   studios?: string;
   poster: string;
+  banner?: string;
+  trailerUrl?: string;
   synopsis: string[];
   genres: GenreItem[];
   episodeList: EpisodeSummary[];

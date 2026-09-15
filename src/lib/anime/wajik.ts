@@ -58,17 +58,6 @@ export async function fetchWajikCompleted(page: number = 1) {
   }
 }
 
-export async function fetchWajikSearch(query: string) {
-  try {
-    const res = await wajikFetch<any>(`/otakudesu/search?q=${encodeURIComponent(query)}`);
-    if (res?.statusCode === 200 && (res?.data?.animeList?.length || 0) > 0) return res;
-    throw new Error('Otakudesu search empty');
-  } catch {
-    return await wajikFetch<any>(`/oploverz/search?q=${encodeURIComponent(query)}`);
-  }
-}
-
-
 const ABBREVIATIONS: Record<string, string> = {
   'bnha': 'boku-no-hero-academia',
   'mha': 'boku-no-hero-academia',
@@ -204,120 +193,258 @@ function findBestAnimeMatch(list: any[], candidateSlugs: string[], targetAnimeId
   return filtered[0] || list[0];
 }
 
+export async function fetchWajikSearch(query: string) {
+  const providers = ['otakudesu', 'oploverz', 'samehadaku', 'kuramanime'];
+  for (const p of providers) {
+    try {
+      const res = await wajikFetch<any>(`/${p}/search?q=${encodeURIComponent(query)}`);
+      const list = res?.data?.animeList || res?.data || [];
+      if (res?.statusCode === 200 && Array.isArray(list) && list.length > 0) {
+        return {
+          statusCode: 200,
+          statusMessage: 'OK',
+          data: { animeList: list },
+        };
+      }
+    } catch {}
+  }
+  return { statusCode: 200, statusMessage: 'OK', data: { animeList: [] } };
+}
+
+async function fetchJikanMetadata(query: string) {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2500);
+
+    const res = await fetch(`https://api.jikan.moe/v4/anime?q=${encodeURIComponent(query)}&limit=1`, {
+      signal: controller.signal,
+      headers: { 'Accept': 'application/json' },
+    });
+    clearTimeout(timeoutId);
+
+    if (!res.ok) return null;
+    const json = await res.json();
+    const item = json.data?.[0];
+    if (!item) return null;
+
+    return {
+      title: item.title,
+      japanese: item.title_japanese,
+      poster: item.images?.jpg?.large_image_url || item.images?.webp?.large_image_url || item.images?.jpg?.image_url,
+      banner: undefined as string | undefined,
+      score: item.score ? String(item.score) : undefined,
+      status: item.status,
+      episodes: item.episodes ? `${item.episodes} Episode` : undefined,
+      synopsis: item.synopsis ? [item.synopsis] : undefined,
+      trailerUrl: item.trailer?.embed_url || null,
+      genres: Array.isArray(item.genres) ? item.genres.map((g: any) => ({ title: g.name, genreId: g.name.toLowerCase() })) : [],
+      studios: Array.isArray(item.studios) ? item.studios.map((s: any) => s.name).join(', ') : undefined,
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function fetchAniListMetadata(query: string) {
+  try {
+    const gqlQuery = `
+      query ($search: String) {
+        Media (search: $search, type: ANIME) {
+          title { romaji english native }
+          coverImage { extraLarge large medium }
+          bannerImage
+          description
+          averageScore
+          episodes
+          status
+          genres
+          studios { nodes { name } }
+          trailer { id site thumbnail }
+        }
+      }
+    `;
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+    const res = await fetch('https://graphql.anilist.co', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ query: gqlQuery, variables: { search: query } }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    if (!res.ok) return null;
+    const json = await res.json();
+    const media = json.data?.Media;
+    if (!media) return null;
+
+    return {
+      title: media.title?.romaji || media.title?.english || query,
+      japanese: media.title?.native,
+      poster: media.coverImage?.extraLarge || media.coverImage?.large,
+      banner: media.bannerImage,
+      score: media.averageScore ? (media.averageScore / 10).toFixed(1) : undefined,
+      status: media.status,
+      episodes: media.episodes ? `${media.episodes} Episode` : undefined,
+      synopsis: media.description ? [media.description.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '')] : undefined,
+      trailerUrl: media.trailer?.site === 'youtube' ? `https://www.youtube.com/embed/${media.trailer.id}` : null,
+      genres: Array.isArray(media.genres) ? media.genres.map((g: any) => ({ title: g, genreId: g.toLowerCase() })) : [],
+      studios: media.studios?.nodes?.map((n: any) => n.name).join(', '),
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchHybridMetadata(query: string) {
+  const jikan = await fetchJikanMetadata(query);
+  if (jikan && jikan.poster) return jikan;
+
+  const anilist = await fetchAniListMetadata(query);
+  if (anilist && anilist.poster) return anilist;
+
+  return null;
+}
+
 export async function fetchWajikAnimeDetail(animeId: string) {
   const { candidateSlugs, searchQueries } = generateCandidateQueries(animeId);
+  const providers = ['otakudesu', 'oploverz', 'samehadaku', 'kuramanime'];
 
-  // 1. Direct fetch across Otakudesu & Oploverz for all candidate slugs
-  for (const slug of candidateSlugs) {
-    try {
-      const res = await wajikFetch<any>(`/otakudesu/anime/${encodeURIComponent(slug)}`);
-      if (res?.statusCode === 200 && res?.data?.details?.episodeList?.length > 0) return res;
-    } catch {}
+  let foundRes: any = null;
 
-    try {
-      const res = await wajikFetch<any>(`/oploverz/anime/${encodeURIComponent(slug)}`);
-      if (res?.statusCode === 200 && res?.data?.details?.episodeList?.length > 0) return res;
-    } catch {}
-  }
-
-  // 2. Search queries across Otakudesu and Oploverz
-  for (const q of searchQueries) {
-    // Try Otakudesu search
-    try {
-      const sRes = await wajikFetch<any>(`/otakudesu/search?q=${encodeURIComponent(q)}`);
-      const list = sRes?.data?.animeList || [];
-      if (list.length > 0) {
-        const matched = findBestAnimeMatch(list, candidateSlugs, animeId);
-        const targetSlug = matched?.animeId || matched?.slug;
-        if (targetSlug) {
-          const detail = await wajikFetch<any>(`/otakudesu/anime/${encodeURIComponent(targetSlug)}`);
-          if (detail?.statusCode === 200 && detail?.data?.details?.episodeList?.length > 0) return detail;
+  // 1. Direct fetch across all providers for all candidate slugs
+  for (const p of providers) {
+    for (const slug of candidateSlugs) {
+      try {
+        const res = await wajikFetch<any>(`/${p}/anime/${encodeURIComponent(slug)}`);
+        if (res?.statusCode === 200 && res?.data?.details?.episodeList?.length > 0) {
+          foundRes = res;
+          break;
         }
-      }
-    } catch {}
-
-    // Try Oploverz search
-    try {
-      const sRes = await wajikFetch<any>(`/oploverz/search?q=${encodeURIComponent(q)}`);
-      const list = sRes?.data?.animeList || [];
-      if (list.length > 0) {
-        const matched = findBestAnimeMatch(list, candidateSlugs, animeId);
-        const targetSlug = matched?.slug || matched?.animeId;
-        if (targetSlug) {
-          const detail = await wajikFetch<any>(`/oploverz/anime/${encodeURIComponent(targetSlug)}`);
-          if (detail?.statusCode === 200 && detail?.data?.details?.episodeList?.length > 0) return detail;
-        }
-      }
-    } catch {}
+      } catch {}
+    }
+    if (foundRes) break;
   }
 
-  // 3. Fallback object generation with real metadata extracted from search summary if available
-  let searchSummary: any = null;
-  for (const q of searchQueries) {
-    try {
-      const sRes = await wajikFetch<any>(`/oploverz/search?q=${encodeURIComponent(q)}`);
-      const list = sRes?.data?.animeList || [];
-      if (list.length > 0) {
-        searchSummary = findBestAnimeMatch(list, candidateSlugs, animeId);
-        if (searchSummary) break;
+  // 2. Search queries across all providers
+  if (!foundRes) {
+    for (const q of searchQueries) {
+      for (const p of providers) {
+        try {
+          const sRes = await wajikFetch<any>(`/${p}/search?q=${encodeURIComponent(q)}`);
+          const list = sRes?.data?.animeList || sRes?.data || [];
+          if (Array.isArray(list) && list.length > 0) {
+            const matched = findBestAnimeMatch(list, candidateSlugs, animeId);
+            const targetSlug = matched?.animeId || matched?.slug;
+            if (targetSlug) {
+              const detail = await wajikFetch<any>(`/${p}/anime/${encodeURIComponent(targetSlug)}`);
+              if (detail?.statusCode === 200 && detail?.data?.details?.episodeList?.length > 0) {
+                foundRes = detail;
+                break;
+              }
+            }
+          }
+        } catch {}
       }
-    } catch {}
-    try {
-      const sRes = await wajikFetch<any>(`/otakudesu/search?q=${encodeURIComponent(q)}`);
-      const list = sRes?.data?.animeList || [];
-      if (list.length > 0) {
-        searchSummary = findBestAnimeMatch(list, candidateSlugs, animeId);
-        if (searchSummary) break;
-      }
-    } catch {}
+      if (foundRes) break;
+    }
   }
 
-  const epStr = searchSummary?.episodes || searchSummary?.latestEpisode || searchSummary?.episode || '';
-  const epNumMatch = String(epStr).match(/(\d+)/);
-  const parsedEp = epNumMatch ? parseInt(epNumMatch[1], 10) : null;
-  const epMatch = animeId.match(/(?:ep|episode|op)[-_]?(\d+)/i);
-  const maxEp = epMatch ? parseInt(epMatch[1], 10) : 12;
-  const totalEpCount = parsedEp && parsedEp > 0 ? parsedEp : maxEp;
+  let finalRes = foundRes;
 
-  const cleanSlug = cleanAnimeSlug(animeId);
-  const cleanQuery = (cleanSlug || animeId).replace(/-/g, ' ').trim();
-  const fallbackTitle = searchSummary?.title
-    ? String(searchSummary.title).replace(/\s+Sub.*$/i, '').trim()
-    : (cleanQuery || animeId.replace(/[-_]/g, ' ')).replace(/\b\w/g, (c) => c.toUpperCase());
+  if (!finalRes) {
+    let searchSummary: any = null;
+    for (const q of searchQueries) {
+      for (const p of providers) {
+        try {
+          const sRes = await wajikFetch<any>(`/${p}/search?q=${encodeURIComponent(q)}`);
+          const list = sRes?.data?.animeList || sRes?.data || [];
+          if (Array.isArray(list) && list.length > 0) {
+            searchSummary = findBestAnimeMatch(list, candidateSlugs, animeId);
+            if (searchSummary) break;
+          }
+        } catch {}
+      }
+      if (searchSummary) break;
+    }
+    const epStr = searchSummary?.episodes || searchSummary?.latestEpisode || searchSummary?.episode || '';
+    const epNumMatch = String(epStr).match(/(\d+)/);
+    const parsedEp = epNumMatch ? parseInt(epNumMatch[1], 10) : null;
+    const epMatch = animeId.match(/(?:ep|episode|op)[-_]?(\d+)/i);
+    const maxEp = epMatch ? parseInt(epMatch[1], 10) : 12;
+    const totalEpCount = parsedEp && parsedEp > 0 ? parsedEp : maxEp;
 
-  const fallbackPoster = searchSummary?.poster || 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=400&q=80';
-  const fallbackScore = searchSummary?.score ? String(searchSummary.score).replace('Rating :', '').trim() : '7.8';
-  const fallbackStatus = searchSummary?.status ? String(searchSummary.status).replace('Status :', '').trim() : 'Ongoing';
-  const fallbackGenres = Array.isArray(searchSummary?.genreList) && searchSummary.genreList.length > 0
-    ? searchSummary.genreList.map((g: any) => ({
-        title: typeof g === 'string' ? g : g?.title || g?.name || 'Drama',
-        genreId: typeof g === 'string' ? g : g?.genreId || g?.id || 'drama',
-      }))
-    : [{ title: 'Drama', genreId: 'drama' }, { title: 'Historical', genreId: 'historical' }];
+    const cleanSlug = cleanAnimeSlug(animeId);
+    const cleanQuery = (cleanSlug || animeId).replace(/-/g, ' ').trim();
+    const fallbackTitle = searchSummary?.title
+      ? String(searchSummary.title).replace(/\s+Sub.*$/i, '').trim()
+      : (cleanQuery || animeId.replace(/[-_]/g, ' ')).replace(/\b\w/g, (c) => c.toUpperCase());
 
-  return {
-    statusCode: 200,
-    statusMessage: 'OK',
-    data: {
-      details: {
-        id: animeId,
-        animeId,
-        title: fallbackTitle,
-        japanese: fallbackTitle,
-        poster: fallbackPoster,
-        synopsis: { paragraphList: [`Saksikan tayangan anime ${fallbackTitle} subtitle Indonesia dengan pemutar video kualitas HD.`] },
-        status: fallbackStatus,
-        score: fallbackScore,
-        type: 'TV',
-        episodes: `${totalEpCount} Episode`,
-        genreList: fallbackGenres,
-        episodeList: Array.from({ length: totalEpCount }).map((_, i) => ({
-          title: `Episode ${i + 1}`,
-          episodeId: `${cleanSlug || animeId}-episode-${i + 1}-subtitle-indonesia`,
-        })),
+    const fallbackPoster = searchSummary?.poster || 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=400&q=80';
+    const fallbackScore = searchSummary?.score ? String(searchSummary.score).replace('Rating :', '').trim() : '7.8';
+    const fallbackStatus = searchSummary?.status ? String(searchSummary.status).replace('Status :', '').trim() : 'Ongoing';
+    const fallbackGenres = Array.isArray(searchSummary?.genreList) && searchSummary.genreList.length > 0
+      ? searchSummary.genreList.map((g: any) => ({
+          title: typeof g === 'string' ? g : g?.title || g?.name || 'Drama',
+          genreId: typeof g === 'string' ? g : g?.genreId || g?.id || 'drama',
+        }))
+      : [{ title: 'Drama', genreId: 'drama' }, { title: 'Historical', genreId: 'historical' }];
+
+    finalRes = {
+      statusCode: 200,
+      statusMessage: 'OK',
+      data: {
+        details: {
+          id: animeId,
+          animeId,
+          title: fallbackTitle,
+          japanese: fallbackTitle,
+          poster: fallbackPoster,
+          synopsis: { paragraphList: [`Saksikan tayangan anime ${fallbackTitle} subtitle Indonesia dengan pemutar video kualitas HD.`] },
+          status: fallbackStatus,
+          score: fallbackScore,
+          type: 'TV',
+          episodes: `${totalEpCount} Episode`,
+          genreList: fallbackGenres,
+          episodeList: Array.from({ length: totalEpCount }).map((_, i) => ({
+            title: `Episode ${i + 1}`,
+            episodeId: `${cleanSlug || animeId}-episode-${i + 1}-subtitle-indonesia`,
+          })),
+        },
       },
-    },
-  };
+    };
+  }
+
+  // Enrich with Jikan v4 / AniList HD Metadata (Posters, Banners, Trailers, Japanese titles)
+  if (finalRes?.data?.details) {
+    const d = finalRes.data.details;
+    const rawTitle = d.title || animeId;
+    const cleanSearchTitle = rawTitle
+      .replace(/Subtitle Indonesia.*/gi, '')
+      .replace(/Sub Indo.*/gi, '')
+      .replace(/\(Episode \d+.*?\)/gi, '')
+      .replace(/[-_]/g, ' ')
+      .trim();
+
+    try {
+      const meta = await fetchHybridMetadata(cleanSearchTitle);
+      if (meta) {
+        if (meta.poster && (!d.poster || d.poster.includes('unsplash') || d.poster.includes('placeholder'))) d.poster = meta.poster;
+        if (meta.banner) d.banner = meta.banner;
+        if (meta.trailerUrl) d.trailerUrl = meta.trailerUrl;
+        if (meta.japanese) d.japanese = meta.japanese;
+        if (meta.studios) d.studios = meta.studios;
+        if (meta.score && (!d.score || d.score === '7.8')) d.score = meta.score;
+        if (meta.synopsis && meta.synopsis.length > 0 && (!d.synopsis?.paragraphList || d.synopsis?.paragraphList?.[0]?.includes('Saksikan'))) {
+          d.synopsis = { paragraphList: meta.synopsis };
+        }
+      }
+    } catch {}
+  }
+
+  return finalRes;
 }
 
 export async function fetchTMDBAnimeSlugDetail(animeId: string) {
@@ -325,16 +452,15 @@ export async function fetchTMDBAnimeSlugDetail(animeId: string) {
 }
 
 export async function fetchWajikEpisodeDetail(episodeId: string) {
-  // 1. Try direct fetch for given episodeId
-  try {
-    const res = await wajikFetch<any>(`/otakudesu/episode/${encodeURIComponent(episodeId)}`);
-    if (res?.statusCode === 200 && res?.data?.details?.streamingUrl || res?.data?.details?.server || res?.data?.details?.download) return res;
-  } catch {}
+  const providers = ['otakudesu', 'oploverz', 'samehadaku', 'kuramanime'];
 
-  try {
-    const res = await wajikFetch<any>(`/oploverz/episode/${encodeURIComponent(episodeId)}`);
-    if (res?.statusCode === 200 && res?.data?.details?.streamingUrl || res?.data?.details?.server || res?.data?.details?.download) return res;
-  } catch {}
+  // 1. Try direct fetch for given episodeId across all providers
+  for (const p of providers) {
+    try {
+      const res = await wajikFetch<any>(`/${p}/episode/${encodeURIComponent(episodeId)}`);
+      if (res?.statusCode === 200 && (res?.data?.details?.streamingUrl || res?.data?.details?.server || res?.data?.details?.download)) return res;
+    } catch {}
+  }
 
   // 2. Resolve via parent anime detail
   const epMatch = episodeId.match(/(?:ep|episode|op)[-_]?(\d+)/i);
