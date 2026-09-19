@@ -43,8 +43,8 @@ export default function HomePage() {
           const homeRes = await fetch('/api/anime/home');
           const homeData = await homeRes.json();
           if (homeData.success && homeData.data) {
-            setOngoingList(homeData.data.ongoingAnime || []);
-            setCompletedList(homeData.data.completedAnime || []);
+            setOngoingList(homeData.data.ongoing || homeData.data.ongoingAnime || []);
+            setCompletedList(homeData.data.completed || homeData.data.completedAnime || []);
           } else {
             setError(homeData.error || 'Gagal memuat data dari Wajik API');
           }
