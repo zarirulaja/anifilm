@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchWajikServerStream } from '@/lib/anime/wajik';
 import { normalizeServerStream } from '@/lib/anime/adapter';
+import { resolveStreamSource } from '@/lib/anime/streamResolver';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -17,7 +18,16 @@ export async function GET(
 
     const raw = await fetchWajikServerStream(serverId);
     const normalized = normalizeServerStream(raw, serverId);
-    return NextResponse.json({ success: true, data: normalized });
+    const resolved = await resolveStreamSource(normalized.url);
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        ...normalized,
+        url: resolved.url,
+        isIframe: resolved.isIframe,
+      },
+    });
   } catch (error) {
     console.error(`API Error /api/anime/server/${params.serverId}:`, error);
     return NextResponse.json(

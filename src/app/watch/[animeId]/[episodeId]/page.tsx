@@ -22,6 +22,7 @@ export default function WatchPage({
   const [animePoster, setAnimePoster] = useState<string>('');
   const [animeTitle, setAnimeTitle] = useState<string>('');
   const [activeStreamUrl, setActiveStreamUrl] = useState<string>('');
+  const [isIframeStream, setIsIframeStream] = useState<boolean>(true);
   const [selectedServerId, setSelectedServerId] = useState<string | null>(null);
   const [initialProgress, setInitialProgress] = useState<number>(0);
   const [loading, setLoading] = useState(true);
@@ -54,6 +55,10 @@ export default function WatchPage({
           const epData: EpisodeDetail = json.data;
           setEpisode(epData);
           setActiveStreamUrl(epData.defaultStreamingUrl);
+          setIsIframeStream(
+            !epData.defaultStreamingUrl?.includes('.mp4') &&
+            !epData.defaultStreamingUrl?.includes('googlevideo.com')
+          );
           
           // Set default selected server ID so server selector button is highlighted
           const firstServerId = epData.qualities?.[0]?.servers?.[0]?.serverId;
@@ -86,6 +91,10 @@ export default function WatchPage({
 
     if (server.serverId.startsWith('http://') || server.serverId.startsWith('https://')) {
       setActiveStreamUrl(server.serverId);
+      setIsIframeStream(
+        !server.serverId.includes('.mp4') &&
+        !server.serverId.includes('googlevideo.com')
+      );
       return;
     }
 
@@ -95,6 +104,7 @@ export default function WatchPage({
       const json = await res.json();
       if (json.success && json.data?.url) {
         setActiveStreamUrl(json.data.url);
+        setIsIframeStream(json.data.isIframe !== false);
       } else {
         setError('Gagal mengambil URL video dari server yang dipilih');
       }
@@ -188,7 +198,7 @@ export default function WatchPage({
 
         <VideoPlayer
           streamUrl={activeStreamUrl}
-          isIframe={true}
+          isIframe={isIframeStream}
           mediaType="anime"
           animeId={animeId}
           animeTitle={animeTitle || episode.title}

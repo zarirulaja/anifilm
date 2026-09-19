@@ -215,6 +215,9 @@ export default function VideoPlayer({
             <video
               ref={videoRef}
               src={streamUrl}
+              controls
+              playsInline
+              autoPlay
               className="w-full h-full object-contain"
               onPlay={() => setIsPlaying(true)}
               onPause={() => setIsPlaying(false)}
@@ -241,35 +244,42 @@ export default function VideoPlayer({
         {/* Video Overlay Info Header */}
         <div className="absolute top-4 left-4 right-4 flex items-center justify-between pointer-events-none z-10">
           <div className="flex items-center gap-2 pointer-events-auto">
-            <button
-              onClick={() => {
-                const nextState = !isAdBlockActive;
-                setIsAdBlockActive(nextState);
-                showToast(
-                  nextState
-                    ? '🛡️ Proteksi Iklan Diaktifkan (Pop-up & Tab Baru Diblokir)'
-                    : '⚠️ Proteksi Iklan Dinonaktifkan',
-                  nextState ? 'success' : 'info'
-                );
-              }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border backdrop-blur-md text-xs font-bold transition-all shadow-lg ${
-                isAdBlockActive
-                  ? 'bg-emerald-950/80 border-emerald-500/50 text-emerald-300 hover:bg-emerald-900/80'
-                  : 'bg-slate-900/80 border-slate-700 text-slate-400 hover:bg-slate-800'
-              }`}
-              title={
-                isAdBlockActive
-                  ? 'Proteksi Iklan Aktif: Pop-up & tab baru diblokir. Klik untuk menonaktifkan jika video membutuhkan izin khusus.'
-                  : 'Proteksi Iklan Nonaktif. Klik untuk mengaktifkan kembali.'
-              }
-            >
-              {isAdBlockActive ? (
+            {isIframe ? (
+              <button
+                onClick={() => {
+                  const nextState = !isAdBlockActive;
+                  setIsAdBlockActive(nextState);
+                  showToast(
+                    nextState
+                      ? '🛡️ Proteksi Iklan Diaktifkan (Pop-up & Tab Baru Diblokir)'
+                      : '⚠️ Proteksi Iklan Dinonaktifkan',
+                    nextState ? 'success' : 'info'
+                  );
+                }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border backdrop-blur-md text-xs font-bold transition-all shadow-lg ${
+                  isAdBlockActive
+                    ? 'bg-emerald-950/80 border-emerald-500/50 text-emerald-300 hover:bg-emerald-900/80'
+                    : 'bg-slate-900/80 border-slate-700 text-slate-400 hover:bg-slate-800'
+                }`}
+                title={
+                  isAdBlockActive
+                    ? 'Proteksi Iklan Aktif: Pop-up & tab baru diblokir. Klik untuk menonaktifkan jika video membutuhkan izin khusus.'
+                    : 'Proteksi Iklan Nonaktif. Klik untuk mengaktifkan kembali.'
+                }
+              >
+                {isAdBlockActive ? (
+                  <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                ) : (
+                  <ShieldAlert className="w-4 h-4 text-slate-400" />
+                )}
+                <span>{isAdBlockActive ? 'Anti-Iklan Aktif' : 'Anti-Iklan Nonaktif'}</span>
+              </button>
+            ) : (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-emerald-500/50 bg-emerald-950/80 backdrop-blur-md text-xs font-bold text-emerald-300 shadow-lg">
                 <ShieldCheck className="w-4 h-4 text-emerald-400" />
-              ) : (
-                <ShieldAlert className="w-4 h-4 text-slate-400" />
-              )}
-              <span>{isAdBlockActive ? 'Anti-Iklan Aktif' : 'Anti-Iklan Nonaktif'}</span>
-            </button>
+                <span>Video Langsung (Bebas Iklan)</span>
+              </div>
+            )}
 
             <div className="flex items-center gap-2 bg-slate-950/90 px-3 py-1.5 rounded-xl border border-slate-800 backdrop-blur-md">
               <Volume2 className="w-4 h-4 text-emerald-400" />
