@@ -197,7 +197,30 @@ export default function VideoPlayer({
         className="relative aspect-video w-full rounded-3xl overflow-hidden bg-black border border-slate-800 shadow-2xl group"
       >
         {streamUrl ? (
-          isIframe ? (
+          streamUrl.includes('desustream.net') ? (
+            <div className="flex flex-col items-center justify-center h-full p-6 text-center space-y-4 bg-gradient-to-b from-slate-900 to-black">
+              <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-400">
+                <ExternalLink className="w-8 h-8" />
+              </div>
+              <div className="space-y-1.5 max-w-md">
+                <h3 className="text-base font-bold text-white">Server ondesu Memerlukan Akses Tab Baru</h3>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Penyedia mirror ini (desustream) memasang proteksi keamanan yang menolak pemutaran di dalam website pihak ketiga. Silakan klik tombol di bawah untuk menonton di tab baru, atau pilih <strong>Server Utama (Akira Player)</strong> pada menu server di bawah untuk menonton langsung di sini tanpa iklan.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                <a
+                  href={streamUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs shadow-lg shadow-red-600/30 transition-all hover:scale-105"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  <span>Buka Video di Tab Baru</span>
+                </a>
+              </div>
+            </div>
+          ) : isIframe ? (
             <iframe
               src={streamUrl}
               className="w-full h-full border-0"

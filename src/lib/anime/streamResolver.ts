@@ -1,13 +1,13 @@
 export interface ResolvedStream {
   url: string;
   isIframe: boolean;
-  type?: 'direct' | 'iframe' | 'proxy';
+  type?: 'direct' | 'iframe';
 }
 
 /**
- * Resolves a raw stream or embed URL into a direct playable stream or frame-accessible embed URL.
- * Specifically unpacks desustream.net embeds (used by Otakudesu for ondesuhd and ondesu) to extract
- * the direct Google Video or Blogger video streams, bypassing frame-ancestors restrictions.
+ * Resolves a raw stream or embed URL into a direct playable stream or embed URL.
+ * Attempts server-side extraction of Google Video / Blogger sources from wrapper hosts
+ * when accessible, and falls back safely to the raw embed URL.
  */
 export async function resolveStreamSource(rawUrl: string): Promise<ResolvedStream> {
   if (!rawUrl) {
@@ -71,11 +71,11 @@ export async function resolveStreamSource(rawUrl: string): Promise<ResolvedStrea
       console.warn('Failed to resolve desustream URL:', err);
     }
 
-    // Fallback: If direct extraction did not find source/iframe, use our proxy to strip frame-ancestors
+    // Return original raw URL as fallback
     return {
-      url: `/api/proxy/embed?url=${encodeURIComponent(rawUrl)}`,
+      url: rawUrl,
       isIframe: true,
-      type: 'proxy',
+      type: 'iframe',
     };
   }
 
