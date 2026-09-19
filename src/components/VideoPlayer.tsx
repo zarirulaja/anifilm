@@ -43,24 +43,20 @@ export default function VideoPlayer({
   const [showResumePrompt, setShowResumePrompt] = useState(initialProgress > 10);
   const [isEnded, setIsEnded] = useState(false);
 
-  // Auto-save progress every 5 seconds
-  const lastSavedTimeRef = useRef<number>(0);
-
   const resolvedMediaType: 'anime' | 'movie' =
     mediaType || (episodeId === 'full-movie' || episodeTitle.toLowerCase().includes('movie') ? 'movie' : 'anime');
 
-  const saveProgress = async (current: number, dur: number, completed: boolean = false) => {
-    if (current <= 0 && !completed) return;
+  const saveProgress = (current: number, dur: number, completed: boolean = false) => {
     try {
       // Save directly to user's device localStorage
       saveWatchProgress({
         mediaType: resolvedMediaType,
         animeId,
-        animeTitle,
-        poster,
+        animeTitle: animeTitle || 'Anime',
+        poster: poster || '',
         episodeId,
-        episodeTitle,
-        progressSeconds: Math.floor(current),
+        episodeTitle: episodeTitle || 'Episode',
+        progressSeconds: Math.max(1, Math.floor(current)),
         durationSeconds: Math.floor(dur || 1440),
         completed,
       });
@@ -69,22 +65,31 @@ export default function VideoPlayer({
     }
   };
 
+  // 1. Immediately record to history as soon as user opens this episode / movie
+  useEffect(() => {
+    if (animeId && episodeId) {
+      saveProgress(initialProgress || 1, duration || 1440, false);
+    }
+  }, [animeId, episodeId, streamUrl]);
+
   useEffect(() => {
     if (initialProgress > 10 && !isIframe && videoRef.current) {
       videoRef.current.currentTime = initialProgress;
     }
   }, [initialProgress, isIframe]);
 
-  // Periodic progress saving for iframe mode
+  // 2. Periodic progress tracking while watching in iframe mode
   useEffect(() => {
+    if (!isIframe || !animeId || !episodeId) return;
+
+    let elapsed = 0;
     const interval = setInterval(() => {
-      if (currentTime - lastSavedTimeRef.current > 4) {
-        lastSavedTimeRef.current = currentTime;
-        saveProgress(currentTime, duration);
-      }
+      elapsed += 5;
+      saveProgress((initialProgress || 0) + elapsed, duration || 1440, false);
     }, 5000);
+
     return () => clearInterval(interval);
-  }, [currentTime, duration, animeId, episodeId]);
+  }, [isIframe, animeId, episodeId, initialProgress, duration, resolvedMediaType]);
 
   // Keyboard Shortcuts handler
   useEffect(() => {

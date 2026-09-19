@@ -19,12 +19,28 @@ export default function WatchPage({
   const { animeId, episodeId } = params;
 
   const [episode, setEpisode] = useState<EpisodeDetail | null>(null);
+  const [animePoster, setAnimePoster] = useState<string>('');
+  const [animeTitle, setAnimeTitle] = useState<string>('');
   const [activeStreamUrl, setActiveStreamUrl] = useState<string>('');
   const [selectedServerId, setSelectedServerId] = useState<string | null>(null);
   const [initialProgress, setInitialProgress] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [streamLoading, setStreamLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (animeId) {
+      fetch(`/api/anime/${animeId}`)
+        .then((r) => r.json())
+        .then((j) => {
+          if (j.success && j.data) {
+            if (j.data.poster) setAnimePoster(j.data.poster);
+            if (j.data.title) setAnimeTitle(j.data.title);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [animeId]);
 
   useEffect(() => {
     async function loadEpisode() {
@@ -173,9 +189,10 @@ export default function WatchPage({
         <VideoPlayer
           streamUrl={activeStreamUrl}
           isIframe={true}
+          mediaType="anime"
           animeId={animeId}
-          animeTitle={episode.title}
-          poster=""
+          animeTitle={animeTitle || episode.title}
+          poster={animePoster}
           episodeId={episodeId}
           episodeTitle={episode.title}
           initialProgress={initialProgress}
