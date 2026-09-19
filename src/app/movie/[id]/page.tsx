@@ -220,6 +220,7 @@ export default function MovieDetailPage({ params }: { params: { id: string } }) 
         <VideoPlayer
           streamUrl={activeStreamUrl}
           isIframe={true}
+          mediaType="movie"
           animeId={movie.id}
           animeTitle={movie.title}
           poster={movie.poster}

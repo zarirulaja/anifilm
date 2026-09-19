@@ -7,6 +7,7 @@ import { WatchProgressItem } from '@/lib/anime/types';
 import { formatDuration, formatRelativeTime } from '@/lib/utils/time';
 import { useToast } from '@/components/ui/Toast';
 import { useMediaMode } from '@/context/MediaModeContext';
+import { getWatchHistory, removeWatchHistoryItem, clearWatchHistory } from '@/lib/storage/historyStorage';
 
 export default function WatchHistoryPage() {
   const { mode } = useMediaMode();
@@ -15,16 +16,11 @@ export default function WatchHistoryPage() {
   const [loading, setLoading] = useState(true);
   const [showClearModal, setShowClearModal] = useState(false);
 
-  const fetchHistory = async () => {
+  const fetchHistory = () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/history');
-      const json = await res.json();
-      if (json.success) {
-        const allHistory: WatchProgressItem[] = json.data || [];
-        const filtered = allHistory.filter((item: any) => (item.mediaType || 'anime') === mode);
-        setHistoryList(filtered);
-      }
+      const filtered = getWatchHistory(mode);
+      setHistoryList(filtered);
     } catch (err) {
       console.error('Fetch history error:', err);
     } finally {
@@ -34,31 +30,28 @@ export default function WatchHistoryPage() {
 
   useEffect(() => {
     fetchHistory();
+    const handleUpdate = () => fetchHistory();
+    window.addEventListener('watch-history-updated', handleUpdate);
+    return () => window.removeEventListener('watch-history-updated', handleUpdate);
   }, [mode]);
 
-  const removeHistoryItem = async (id: string) => {
+  const removeHistoryItem = (id: string) => {
     try {
-      const res = await fetch(`/api/history?id=${id}`, { method: 'DELETE' });
-      const json = await res.json();
-      if (json.success) {
-        setHistoryList((prev) => prev.filter((item) => item.id !== id));
-        showToast('Item riwayat berhasil dihapus', 'info');
-      }
+      removeWatchHistoryItem(id);
+      setHistoryList((prev) => prev.filter((item) => item.id !== id));
+      showToast('Item riwayat berhasil dihapus dari perangkat ini', 'info');
     } catch (err) {
       console.error('Remove history error:', err);
       showToast('Gagal menghapus item riwayat', 'error');
     }
   };
 
-  const clearAllHistory = async () => {
+  const clearAllHistory = () => {
     try {
-      const res = await fetch('/api/history?all=true', { method: 'DELETE' });
-      const json = await res.json();
-      if (json.success) {
-        setHistoryList([]);
-        setShowClearModal(false);
-        showToast('Seluruh riwayat tontonan telah dibersihkan', 'info');
-      }
+      clearWatchHistory(mode);
+      setHistoryList([]);
+      setShowClearModal(false);
+      showToast('Seluruh riwayat tontonan pada perangkat ini telah dibersihkan', 'info');
     } catch (err) {
       console.error('Clear history error:', err);
       showToast('Gagal membersihkan riwayat', 'error');

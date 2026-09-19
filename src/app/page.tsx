@@ -11,6 +11,7 @@ import ContinueWatchingCard from '@/components/ContinueWatchingCard';
 import { AnimeSummary, WatchProgressItem } from '@/lib/anime/types';
 import { MovieSummary } from '@/lib/movie/types';
 import { useMediaMode } from '@/context/MediaModeContext';
+import { getWatchHistory } from '@/lib/storage/historyStorage';
 
 export default function HomePage() {
   const { mode } = useMediaMode();
@@ -28,6 +29,11 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const refreshHistory = () => {
+    const filtered = getWatchHistory(mode);
+    setContinueWatchingList(filtered.slice(0, 4));
+  };
+
   useEffect(() => {
     async function loadData() {
       setLoading(true);
@@ -36,16 +42,16 @@ export default function HomePage() {
         if (mode === 'anime') {
           const homeRes = await fetch('/api/anime/home');
           const homeData = await homeRes.json();
-          if (homeData.success) {
-            setOngoingList(homeData.data.ongoing || []);
-            setCompletedList(homeData.data.completed || []);
+          if (homeData.success && homeData.data) {
+            setOngoingList(homeData.data.ongoingAnime || []);
+            setCompletedList(homeData.data.completedAnime || []);
           } else {
-            setError(homeData.error || 'Gagal memuat data dari Wajik Anime API');
+            setError(homeData.error || 'Gagal memuat data dari Wajik API');
           }
         } else {
           const movieRes = await fetch('/api/movie/home');
           const movieData = await movieRes.json();
-          if (movieData.success) {
+          if (movieData.success && movieData.data) {
             setPopularMovies(movieData.data.popularMovies || []);
             setPopularSeries(movieData.data.popularSeries || []);
           } else {
@@ -53,15 +59,8 @@ export default function HomePage() {
           }
         }
 
-        // Fetch watch history filtering by active mediaType
-        const historyRes = await fetch('/api/history');
-        const historyData = await historyRes.json();
-        if (historyData.success) {
-          const filtered = (historyData.data || []).filter(
-            (item: any) => (item.mediaType || 'anime') === mode
-          );
-          setContinueWatchingList(filtered.slice(0, 4));
-        }
+        // Fetch watch history from device storage
+        refreshHistory();
       } catch (err) {
         console.error('Home Page load error:', err);
         setError(
@@ -75,6 +74,11 @@ export default function HomePage() {
     }
 
     loadData();
+
+    // Listen to local watch history updates
+    const handleHistoryUpdate = () => refreshHistory();
+    window.addEventListener('watch-history-updated', handleHistoryUpdate);
+    return () => window.removeEventListener('watch-history-updated', handleHistoryUpdate);
   }, [mode]);
 
   const heroAnime = ongoingList.length > 0 ? ongoingList[0] : null;

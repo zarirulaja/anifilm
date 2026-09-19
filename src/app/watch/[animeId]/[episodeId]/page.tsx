@@ -9,6 +9,7 @@ import { ChevronLeft, ChevronRight, Film, Server, AlertCircle } from 'lucide-rea
 import VideoPlayer from '@/components/VideoPlayer';
 import ServerSelector from '@/components/ServerSelector';
 import { EpisodeDetail, ServerOption } from '@/lib/anime/types';
+import { getWatchProgress } from '@/lib/storage/historyStorage';
 
 export default function WatchPage({
   params,
@@ -44,11 +45,10 @@ export default function WatchPage({
             setSelectedServerId(firstServerId);
           }
 
-          // Fetch saved progress for this episode
-          const progRes = await fetch(`/api/history/progress?animeId=${animeId}&episodeId=${episodeId}`);
-          const progJson = await progRes.json();
-          if (progJson.success && progJson.data) {
-            setInitialProgress(progJson.data.progressSeconds || 0);
+          // Fetch saved progress for this episode from device storage
+          const savedProg = getWatchProgress(animeId, episodeId);
+          if (savedProg && savedProg.progressSeconds > 10) {
+            setInitialProgress(savedProg.progressSeconds);
           }
         } else {
           setError(json.error || 'Detail episode tidak ditemukan');

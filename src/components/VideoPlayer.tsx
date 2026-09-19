@@ -4,10 +4,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Play, Pause, Maximize, ExternalLink, RotateCcw, ChevronRight, Subtitles, Clock, Volume2, Globe } from 'lucide-react';
 import { formatDuration } from '@/lib/utils/time';
 import { useToast } from '@/components/ui/Toast';
+import { saveWatchProgress } from '@/lib/storage/historyStorage';
 
 interface VideoPlayerProps {
   streamUrl: string;
   isIframe?: boolean;
+  mediaType?: 'anime' | 'movie';
   animeId: string;
   animeTitle: string;
   poster: string;
@@ -21,6 +23,7 @@ interface VideoPlayerProps {
 export default function VideoPlayer({
   streamUrl,
   isIframe = true,
+  mediaType,
   animeId,
   animeTitle,
   poster,
@@ -43,22 +46,23 @@ export default function VideoPlayer({
   // Auto-save progress every 5 seconds
   const lastSavedTimeRef = useRef<number>(0);
 
+  const resolvedMediaType: 'anime' | 'movie' =
+    mediaType || (episodeId === 'full-movie' || episodeTitle.toLowerCase().includes('movie') ? 'movie' : 'anime');
+
   const saveProgress = async (current: number, dur: number, completed: boolean = false) => {
     if (current <= 0 && !completed) return;
     try {
-      await fetch('/api/history/progress', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          animeId,
-          animeTitle,
-          poster,
-          episodeId,
-          episodeTitle,
-          progressSeconds: Math.floor(current),
-          durationSeconds: Math.floor(dur || 1440),
-          completed,
-        }),
+      // Save directly to user's device localStorage
+      saveWatchProgress({
+        mediaType: resolvedMediaType,
+        animeId,
+        animeTitle,
+        poster,
+        episodeId,
+        episodeTitle,
+        progressSeconds: Math.floor(current),
+        durationSeconds: Math.floor(dur || 1440),
+        completed,
       });
     } catch (err) {
       console.error('Failed to save watch progress:', err);

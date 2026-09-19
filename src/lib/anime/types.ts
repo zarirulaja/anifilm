@@ -90,6 +90,7 @@ export interface StreamSource {
 
 export interface WatchProgressItem {
   id: string;
+  mediaType?: 'anime' | 'movie';
   animeId: string;
   animeTitle: string;
   poster: string;

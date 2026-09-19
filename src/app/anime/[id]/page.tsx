@@ -9,6 +9,7 @@ import { Play, Star, Heart, Calendar, Clock, Film, Tv, AlertCircle } from 'lucid
 import EpisodeList from '@/components/EpisodeList';
 import { AnimeDetail } from '@/lib/anime/types';
 import { useToast } from '@/components/ui/Toast';
+import { getWatchHistory } from '@/lib/storage/historyStorage';
 
 export default function AnimeDetailPage({ params }: { params: { id: string } }) {
   const animeId = params.id;
@@ -42,15 +43,12 @@ export default function AnimeDetailPage({ params }: { params: { id: string } }) 
           setIsFavorite(exists);
         }
 
-        // Check watched episodes from history DB
-        const histRes = await fetch('/api/history');
-        const histJson = await histRes.json();
-        if (histJson.success && Array.isArray(histJson.data)) {
-          const watchedIds = histJson.data
-            .filter((item: any) => item.animeId === animeId)
-            .map((item: any) => item.episodeId);
-          setWatchedEpisodeIds(watchedIds);
-        }
+        // Check watched episodes from device storage
+        const userHistory = getWatchHistory('anime');
+        const watchedIds = userHistory
+          .filter((item) => item.animeId === animeId)
+          .map((item) => item.episodeId);
+        setWatchedEpisodeIds(watchedIds);
       } catch (err) {
         console.error('Anime detail load error:', err);
         setError('Gagal memuat detail anime.');
