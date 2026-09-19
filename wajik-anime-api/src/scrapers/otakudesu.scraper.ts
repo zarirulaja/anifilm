@@ -10,10 +10,11 @@ const DOMAINS = [
 
 const otakudesuScraper = {
   async scrapeDOM(pathname: string, ref?: string, sanitize: boolean = false): Promise<HTMLElement> {
+    const targetPath = (pathname === "/home" || pathname === "/home/") ? "/" : pathname;
     let lastError: any;
     for (const domain of DOMAINS) {
       try {
-        const html = await getHTML(domain, pathname, ref, sanitize);
+        const html = await getHTML(domain, targetPath, ref, sanitize);
         const document = parse(html, { parseNoneClosedTags: true });
         const isOtakudesu = Boolean(
           document.querySelector(".venutama, .venz, .infozingle, .bariskelom, .chivsrc, .flir, .download, .kglist321")
